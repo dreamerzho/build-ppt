@@ -432,18 +432,26 @@ def apply_text_style(shape, *, style_type: str = "body", color: str = "0A0A0A", 
     size = style_font_size(style_type)
     for paragraph in shape.text_frame.paragraphs:
         paragraph.alignment = PP_ALIGN.LEFT
+        paragraph.space_after = Pt(0)
+        paragraph.space_before = Pt(0)
         if style_type in {"hero", "title"}:
-            paragraph.line_spacing = 0.9
+            paragraph.line_spacing = 0.85
         elif style_type == "body":
             paragraph.line_spacing = 1.4
         for run in paragraph.runs:
             if style_type == "kicker":
                 run.text = letterspace_label(str(run.text))
             is_bold = (style_type in {"hero", "title"}) if bold is None else bold
-            run.font.name = font_family_for_style(style_type, size, bold=is_bold)
+            fn = font_family_for_style(style_type, size, bold=is_bold)
+            run.font.name = fn
             run.font.size = Pt(size)
             run.font.bold = is_bold
             run.font.color.rgb = rgb(color)
+            # Force EA typeface into the XML so PPT does not quietly fall back to system defaults on non-CN machines.
+            rPr = run._r.get_or_add_rPr()
+            ea = OxmlElement("a:ea")
+            ea.set("typeface", fn)
+            rPr.append(ea)
 
 
 def apply_minimal_border(shape, *, color: str = MINIMAL_BORDER, width: float = HAIRLINE_WIDTH) -> None:
@@ -489,16 +497,22 @@ def add_text(
         p.text = letterspace_label(part) if style_type == "kicker" else part
         p.alignment = {"left": PP_ALIGN.LEFT, "center": PP_ALIGN.CENTER, "right": PP_ALIGN.RIGHT}[align]
         p.space_after = Pt(0)
+        p.space_before = Pt(0)
         if style_type in {"hero", "title"}:
-            p.line_spacing = 0.9
+            p.line_spacing = 0.85
         elif style_type == "body":
             p.line_spacing = 1.4
         for run in p.runs:
             is_bold = bold or style_type in {"hero", "title"} or (style_type == "custom" and resolved_size >= BODY_FONT_SIZE)
-            run.font.name = font_family_for_style(style_type, resolved_size, bold=is_bold)
+            fn = font_family_for_style(style_type, resolved_size, bold=is_bold)
+            run.font.name = fn
             run.font.size = Pt(resolved_size)
             run.font.bold = is_bold
             run.font.color.rgb = rgb(color)
+            rPr = run._r.get_or_add_rPr()
+            ea = OxmlElement("a:ea")
+            ea.set("typeface", fn)
+            rPr.append(ea)
     return shape
 
 
@@ -575,15 +589,21 @@ def add_text_rich(
         p = tf.paragraphs[0] if idx == 0 else tf.add_paragraph()
         p.alignment = {"left": PP_ALIGN.LEFT, "center": PP_ALIGN.CENTER, "right": PP_ALIGN.RIGHT}[align]
         p.space_after = Pt(0)
+        p.space_before = Pt(0)
         if is_title:
-            p.line_spacing = 0.9
+            p.line_spacing = 0.85
         for segment, is_accent in split_accent_runs(line_text, accent_terms or []):
             run = p.add_run()
             run.text = segment
-            run.font.name = font_family_for_style("title" if is_title else "body", size, bold=is_title)
+            fn = font_family_for_style("title" if is_title else "body", size, bold=is_title)
+            run.font.name = fn
             run.font.size = Pt(size)
             run.font.bold = is_title
             run.font.color.rgb = rgb(accent_color if is_accent else color)
+            rPr = run._r.get_or_add_rPr()
+            ea = OxmlElement("a:ea")
+            ea.set("typeface", fn)
+            rPr.append(ea)
     return shape
 
 
@@ -604,15 +624,15 @@ def build_texture_png(theme: dict[str, str], *, dense: bool = False) -> Path:
     img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     pattern = theme.get("pattern", theme["grey2"]).strip().lstrip("#")
-    rgba = (int(pattern[0:2], 16), int(pattern[2:4], 16), int(pattern[4:6], 16), 110)
+    rgba = (int(pattern[0:2], 16), int(pattern[2:4], 16), int(pattern[4:6], 16), 55)
     step = 18 if dense else 27
     for y in range(8, height - 8, step):
         for x in range(8, width - 8, step):
             if ((x // step) * 7 + (y // step) * 5) % (3 if dense else 5) != 0:
                 continue
             if ((x // step) + (y // step)) % 4 == 0:
-                draw.line((x - 3, y, x + 3, y), fill=rgba, width=1)
-                draw.line((x, y - 3, x, y + 3), fill=rgba, width=1)
+                draw.line((x - 1, y, x + 1, y), fill=rgba, width=1)
+                draw.line((x, y - 1, x, y + 1), fill=rgba, width=1)
             else:
                 draw.rectangle((x, y, x + 1, y + 1), fill=rgba)
     img.save(path)
@@ -812,8 +832,9 @@ def render_six_cells(slide, spec, slide_spec, index, total, theme, base_dir, war
         x, cell_w = get_grid(col * 4, 4)
         y = 2.05 + row * (cell_h + 0.18)
         add_rect(slide, x, y, cell_w, cell_h, fill=theme["grey1"])
-        add_text(slide, item_title(item), x + 0.16, y + 0.15, cell_w - 0.32, 0.35, size=15, color=theme["ink"], bold=True)
-        add_text(slide, item_body(item), x + 0.16, y + 0.62, cell_w - 0.32, 0.55, size=10.5, color=theme["grey3"])
+        pad_x, pad_y = 0.35, 0.35
+        add_text(slide, item_title(item), x + pad_x, y + pad_y, cell_w - pad_x*2, 0.35, size=15, color=theme["ink"], bold=True)
+        add_text(slide, item_body(item), x + pad_x, y + pad_y + 0.5, cell_w - pad_x*2, 0.55, size=10.5, color=theme["grey3"])
 
 
 def render_three_layers(slide, spec, slide_spec, index, total, theme, base_dir, warnings):
@@ -829,9 +850,10 @@ def render_three_layers(slide, spec, slide_spec, index, total, theme, base_dir, 
         fill = theme["accent"] if i == 0 else theme["grey1"]
         text = theme["accent_on"] if i == 0 else theme["ink"]
         add_rect(slide, x, y, card_w, h, fill=fill)
-        add_text(slide, f"{i + 1:02d}", x + 0.2, y + 0.18, card_w - 0.4, 0.28, size=10, color=text, uppercase=True)
-        add_text(slide, item_title(item), x + 0.2, y + 0.72, card_w - 0.4, 0.7, size=20, color=text)
-        add_text(slide, item_body(item), x + 0.2, y + 1.65, card_w - 0.4, 1.1, size=11, color=text)
+        pad = 0.4
+        add_text(slide, f"{i + 1:02d}", x + pad, y + 0.28, card_w - pad*2, 0.28, size=10, color=text, uppercase=True)
+        add_text(slide, item_title(item), x + pad, y + 0.72, card_w - pad*2, 0.7, size=20, color=text)
+        add_text(slide, item_body(item), x + pad, y + 1.65, card_w - pad*2, 1.1, size=11, color=text)
 
 
 def render_kpi_tower(slide, spec, slide_spec, index, total, theme, base_dir, warnings):
@@ -1001,13 +1023,14 @@ def render_brief(slide, spec, slide_spec, index, total, theme, base_dir, warning
         col, row = i % 3, i // 3
         x, y = MARGIN_X + col * (cell_w + 0.18), 1.9 + row * (cell_h + 0.22)
         add_rect(slide, x, y, cell_w, cell_h, fill=theme["paper"], line=theme["grey2"])
+        pad = 0.25
         if i < len(images):
-            add_image(slide, base_dir, images[i], x + 0.1, y + 0.1, cell_w - 0.2, 0.72, theme, warnings)
-            add_text(slide, image_caption(images[i]) or item_title(items[i] if i < len(items) else ""), x + 0.12, y + 0.9, cell_w - 0.24, 0.24, size=8.5, color=theme["grey3"], uppercase=True)
+            add_image(slide, base_dir, images[i], x + pad, y + pad, cell_w - pad*2, 0.72, theme, warnings)
+            add_text(slide, image_caption(images[i]) or item_title(items[i] if i < len(items) else ""), x + pad + 0.02, y + 0.9, cell_w - pad*2 - 0.04, 0.24, size=8.5, color=theme["grey3"], uppercase=True)
         else:
             item = items[i] if i < len(items) else {"title": f"Brief {i + 1}", "body": ""}
-            add_text(slide, item_title(item), x + 0.14, y + 0.18, cell_w - 0.28, 0.3, size=14, color=theme["ink"])
-            add_text(slide, item_body(item), x + 0.14, y + 0.58, cell_w - 0.28, 0.45, size=9.5, color=theme["grey3"])
+            add_text(slide, item_title(item), x + pad, y + 0.25, cell_w - pad*2, 0.3, size=14, color=theme["ink"])
+            add_text(slide, item_body(item), x + pad, y + 0.62, cell_w - pad*2, 0.45, size=9.5, color=theme["grey3"])
 
 
 def render_system(slide, spec, slide_spec, index, total, theme, base_dir, warnings):

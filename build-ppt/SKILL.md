@@ -1,55 +1,97 @@
 ---
 name: build-ppt
-description: Generate editable Swiss International Style PowerPoint decks (.pptx) from deck_spec.json. Use for PPT, PPTX, PowerPoint, editable slides, Swiss-style decks, course decks, pitch decks, reports, make a pptx, create slides, and HTML-to-PPTX alternatives.
+description: Generate editable Swiss International Style PowerPoint decks (.pptx) from deck_spec.json. Wallpaper-grade editorial art direction. Use for PPT, PPTX, PowerPoint, make a pptx, create slides, Swiss-style decks, course decks, pitch decks, reports, editable slides, HTML-to-PPTX alternatives. 中文触发词：PPT、做PPT、生成PPT、幻灯片、汇报PPT、课程PPT、瑞士风格PPT。
 ---
 
 # Build PPT Skill
 
-Create native editable `.pptx` decks in a Swiss editorial style. Main flow: align intent -> write `deck_spec.json` -> review outline -> validate -> render -> iterate.
+Generate native editable `.pptx` decks in a Swiss editorial style.
+
+**You are an editorial art director and PPTX architect.** Convert text into structured layout intent (JSON), not hardcoded canvas coordinates. The downstream Python renderer owns all x/y placement.
+
+---
+
+## Aesthetic Core (Wallpaper-Grade Rules)
+
+These are non-negotiable constraints that every slide must satisfy:
+
+1. **Absolute grid & negative space**: 12-column grid, strict 8% safe margins. Every element breathing. Whitespace is intentional negative space, not accidental emptiness.
+2. **Extreme type scale**: Hero titles at ~80-88pt for graphic impact. Kicker/metadata at ≤10pt for industrial-strategy feel. No mediocre middle ground.
+3. **Flush-left faith**: All multi-line text MUST be flush-left with ragged right. NEVER justify. This preserves natural character breathing.
+4. **Sharp 90° geometry**: Zero border-radius. All cards, rects, shapes are perfect right angles. No rounded corners, no shadows, no gradients.
+5. **Spot color discipline**: Most of the page is black, white, grey. ONE accent color highlights key metrics or bolded terms. NEVER use multiple accents.
+6. **Zero emoji**: Never output emoji in JSON. Use minimal geometric bullets (`-` or `■`) or Swiss hairlines.
+
+---
 
 ## Phase 1: Intent
 
-Before writing the spec, identify:
+Before writing the spec, confirm:
 
-- Topic, audience, use case, approximate slide count, and required assets.
-- Mode: `light` for projectors/print, `dark` for LED screens or online presentations.
-- Theme: choose from `references/swiss-style.md`. Default to `brutalist_tech` for AI/technology; use `lime` for the original neon AIGC course look.
-- Scope boundary: this skill outputs native PPTX, not HTML, WebGL, video, or arbitrary custom color systems.
+- **Topic, audience, use case, approximate slide count,** and required assets.
+- **Mode**: `light` for projectors/print, `dark` for LED screens or online presentations.
+- **Theme**: choose from `references/swiss-style.md`. Default to `brutalist_tech` for AI/technology; use `lime` for the original neon AIGC course look.
+- **Scope boundary**: this skill outputs native PPTX, not HTML, WebGL, video, or arbitrary custom color systems.
+
+---
 
 ## Phase 2: Spec
 
 Write `deck_spec.json` using `references/deck-spec.schema.json`.
 
-- Prefer abstract `layout_type` values from `references/robustness.md`; direct `S01`-`S22` layout IDs are also supported.
-- Prefer polished layouts: `S01`, `S02`, `S03`, `S04`, `S05`, `S08`, `S11`, `S15`, `S16`, `S19`, `S20`, `S21`, `S22`.
-- Keep each slide to one idea. Long `body` text is auto-paginated; do not shrink typography to force dense content onto one page.
-- Do not use emoji. The renderer strips emoji and warns, but agents should avoid them entirely.
-- Use `meta.mode` or top-level `mode` for `light` / `dark` theme inversion.
-- Put visible text in PowerPoint text boxes. Use editable shapes/lines for diagrams. Use images only for photos, screenshots, or supplied visuals.
-- Image paths are relative to the JSON file. Missing images render as editable placeholders during generation and fail `--validate-only`.
+### Layout Intent (Your Only Job)
 
-Visual requirements:
+You **MUST** output abstract layout intent + structured content. You **MUST NOT** output raw x/y/left/top coordinates — the renderer owns placement.
 
+Approved layouts:
+
+| layout_type | S-ID | Best for |
+|---|---|---|
+| `cover` | `S01` | Cover page — big title |
+| `split_statement` | `S03` | Left-dark / right-light statement |
+| `six_cells` | `S04` | Six-cell grid (brief overview) |
+| `three_layers` | `S05` | Three vertically stacked cards |
+| `duo_compare` | `S08` | Two-column side-by-side |
+| `the_pause` | `S09` | Giant centered statement (chapter break) |
+| `timeline` | `S11` | Horizontal timeline |
+| `image_hero` | `S22` | Full-bleed single image with text overlay |
+
+Prefer polished layouts: `S01`, `S02`, `S03`, `S04`, `S05`, `S08`, `S11`, `S15`, `S16`, `S19`, `S20`, `S21`, `S22`.
+
+### Text Discipline
+
+- **One idea per slide**. If body text exceeds ~150 characters, you MUST split it into two consecutive slide objects.
+- **Do NOT shrink typography** to cram dense content onto one page.
+- Put all visible text in PowerPoint text boxes, not images.
+- Images only for photos, screenshots, or supplied visuals.
+- Image paths are relative to the JSON file. Missing images become editable placeholders.
+- **No emoji in JSON.** The renderer strips emoji and warns.
+
+### Visual References
+
+- Use Microsoft YaHei (bold) for titles, Microsoft YaHei Light for body/chrome/captions.
 - Read `references/editorial-art-direction.md` before authoring.
-- Use absolute PowerPoint canvas thinking, not HTML flow layout.
-- Use Microsoft YaHei: bold `Microsoft YaHei` for titles and `Microsoft YaHei Light` for body/chrome/captions, plus 12-column grid, 8% safe margins, huge 80-88pt titles, tiny chrome, 0.5pt hairlines, sharp geometry, one spot accent color.
+- Use absolute canvas thinking, not HTML flow layout.
+- 12-column grid, 8% safe margins, 0.5pt hairlines, sharp geometry.
+- `meta.mode` or top-level `mode` for `light` / `dark` theme inversion.
+
+---
 
 ## Phase 2.5: Checkpoint
 
-Before rendering, show the user a concise outline unless they explicitly asked for direct or batch generation.
+Before rendering, show the user a concise slide outline unless they explicitly asked for direct or batch generation.
 
 Include:
-
-- Deck title, theme, mode, and approximate slide count.
-- Per-slide list: title plus `layout_type` or `Sxx` layout.
+- Deck title, theme, mode, approximate slide count.
+- Per-slide: title + `layout_type` or `Sxx` layout.
 - Required image list and which pages will use placeholders.
-- Prompt: "Confirm this outline or send edits; after confirmation I will validate and generate the PPTX."
+- "确认大纲或提出修改，确认后我立即验证并生成PPTX。"
 
-Skip this checkpoint only when the user clearly asks to generate immediately, provides a finalized `deck_spec.json`, or the workflow is automated/non-interactive.
+Skip this checkpoint only when the user explicitly requests immediate generation, provides a finalized `deck_spec.json`, or the workflow is non-interactive.
+
+---
 
 ## Phase 3: Validate and Render
-
-Run validation first:
 
 ```bash
 python scripts/build_pptx.py deck_spec.json --validate-only
@@ -57,29 +99,31 @@ python scripts/build_pptx.py deck_spec.json --validate-only
 
 Fix all validation errors and rerun until it passes.
 
-Render:
-
 ```bash
 python scripts/build_pptx.py deck_spec.json --out output.pptx
 ```
 
-The output must be a native editable `.pptx`, not screenshots or HTML.
+Output is a native editable `.pptx`, not screenshots or HTML.
+
+---
 
 ## Phase 4: Iterate
 
-After delivery, iterate by editing `deck_spec.json`, validating again, and rerendering. Keep the same theme and layout system unless the user asks for a new art direction.
+After delivery, iterate by editing `deck_spec.json`, validating, and rerendering. Keep the same theme and layout system unless the user requests new art direction.
+
+---
 
 ## Recovery
 
 | Problem | Recovery |
 |---|---|
 | `ModuleNotFoundError: pptx` | Install `python-pptx`. |
-| `ModuleNotFoundError: PIL` or image handling failure | Install `Pillow`. |
-| Font or text layout issues | Ensure Microsoft YaHei / Microsoft YaHei Light are available; install `fonttools` if font inspection is needed. |
+| `ModuleNotFoundError: PIL` | Install `Pillow`. |
+| Font/text layout issues | Ensure Microsoft YaHei / Microsoft YaHei Light are available; install `fonttools` if needed. |
 | `FileNotFoundError: deck_spec.json` | Check the JSON path relative to the working directory. |
-| Validation reports bad layout or missing field | Fix `layout`, `layout_type`, `title`, `theme`, `mode`, or image paths, then rerun validation. |
-| Image missing during generation | Placeholder is rendered; replace the image path or swap the placeholder in PowerPoint. |
-| Script path not found | Run from the skill directory or use relative path `python scripts/build_pptx.py ...`. |
+| Validation reports bad layout or missing field | Fix `layout`, `layout_type`, `title`, `theme`, `mode`, or image paths, rerun validation. |
+| Image missing during generation | Placeholder rendered; replace in PowerPoint or fix the image path. |
+| Script path not found | Run from the skill directory or use `python scripts/build_pptx.py ...`. |
 | Python too old | Use Python 3.10+ for best compatibility. |
 
 ## Resources
