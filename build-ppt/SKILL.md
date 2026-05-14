@@ -1,6 +1,6 @@
 ---
 name: build-ppt
-description: Generate editable Swiss International Style PowerPoint decks (.pptx) from deck_spec.json. Wallpaper-grade editorial art direction. Use for PPT, PPTX, PowerPoint, make a pptx, create slides, Swiss-style decks, course decks, pitch decks, reports, editable slides, HTML-to-PPTX alternatives. 中文触发词：PPT、做PPT、生成PPT、幻灯片、汇报PPT、课程PPT、瑞士风格PPT。
+description: Generate editable Swiss International Style PowerPoint decks (.pptx) from deck_spec.json. Wallpaper-grade editorial art direction. Use for PPT, PPTX, PowerPoint, make a pptx, create slides, Swiss-style decks, course decks, pitch decks, reports, editable slides, HTML-to-PPTX alternatives.
 ---
 
 # Build PPT Skill
@@ -16,11 +16,11 @@ Generate native editable `.pptx` decks in a Swiss editorial style.
 These are non-negotiable constraints that every slide must satisfy:
 
 1. **Absolute grid & negative space**: 12-column grid, strict 8% safe margins. Every element breathing. Whitespace is intentional negative space, not accidental emptiness.
-2. **Extreme type scale**: Hero titles at ~80-88pt for graphic impact. Kicker/metadata at ≤10pt for industrial-strategy feel. No mediocre middle ground.
+2. **Extreme type scale**: Hero titles at about 80-88pt for graphic impact. Kicker/metadata at 10pt or smaller for industrial-strategy feel. No mediocre middle ground.
 3. **Flush-left faith**: All multi-line text MUST be flush-left with ragged right. NEVER justify. This preserves natural character breathing.
-4. **Sharp 90° geometry**: Zero border-radius. All cards, rects, shapes are perfect right angles. No rounded corners, no shadows, no gradients.
+4. **Sharp 90-degree geometry**: Zero border-radius. All cards, rects, shapes are perfect right angles. No rounded corners, no shadows, no gradients.
 5. **Spot color discipline**: Most of the page is black, white, grey. ONE accent color highlights key metrics or bolded terms. NEVER use multiple accents.
-6. **Zero emoji**: Never output emoji in JSON. Use minimal geometric bullets (`-` or `■`) or Swiss hairlines.
+6. **Zero emoji**: Never output emoji in JSON. Use minimal geometric bullets (`-` or square bullets) or Swiss hairlines.
 
 ---
 
@@ -41,16 +41,16 @@ Write `deck_spec.json` using `references/deck-spec.schema.json`.
 
 ### Layout Intent (Your Only Job)
 
-You **MUST** output abstract layout intent + structured content. You **MUST NOT** output raw x/y/left/top coordinates — the renderer owns placement.
+You **MUST** output abstract layout intent + structured content. You **MUST NOT** output raw x/y/left/top coordinates; the renderer owns placement.
 
 Approved layouts:
 
 | layout_type | S-ID | Best for |
 |---|---|---|
-| `cover` | `S01` | Cover page — big title |
+| `cover` | `S01` | Cover page - big title |
 | `split_statement` | `S03` | Left-dark / right-light statement |
-| `six_cells` | `S04` | Six-cell grid — **requires `icon` field** |
-| `three_layers` | `S05` | Three stacked cards — **requires `icon` field** |
+| `six_cells` | `S04` | Six-cell grid - **requires `icon` field** |
+| `three_layers` | `S05` | Three stacked cards - **requires `icon` field** |
 | `duo_compare` | `S08` | Two-column side-by-side |
 | `the_pause` | `S09` | Giant centered statement (chapter break) |
 | `timeline` | `S11` | Horizontal timeline |
@@ -60,7 +60,7 @@ Prefer polished layouts: `S01`, `S02`, `S03`, `S04`, `S05`, `S08`, `S11`, `S15`,
 
 ### Vector Icon System
 
-When using **`S04` (six_cells)** or **`S05` (three_layers)**, you **MUST** add an `icon` field to every object in the `items` array. This gives each card a scalable, font-based vector icon — no external images needed.
+When using **`S04` (six_cells)** or **`S05` (three_layers)**, you **MUST** add an `icon` field to every object in the `items` array. This gives each card a scalable, font-based vector icon, with no external images needed.
 
 - `icon` value: a single **lowercase English noun** (FontAwesome semantic keyword).
 - **Recommended icon vocabulary**:
@@ -78,13 +78,13 @@ When using **`S04` (six_cells)** or **`S05` (three_layers)**, you **MUST** add a
 "items": [
   {
     "icon": "microchip",
-    "title": "科技数码",
-    "body": "手机/耳机/智能穿戴，强调质感、精密感和未来科技调性。"
+    "title": "Technology and gadgets",
+    "body": "Phones, earbuds, and wearables that emphasize precision, texture, and future-facing technology."
   }
 ]
 ```
 
-- The renderer automatically maps `icon` → FontAwesome Unicode and renders it as a vector text box above the card's title.
+- The renderer automatically maps `icon` to Font Awesome Unicode and renders it as a vector text box above the card's title.
 
 ### Text Discipline
 
@@ -113,7 +113,7 @@ Include:
 - Deck title, theme, mode, approximate slide count.
 - Per-slide: title + `layout_type` or `Sxx` layout.
 - Required image list and which pages will use placeholders.
-- "确认大纲或提出修改，确认后我立即验证并生成PPTX。"
+- "Confirm the outline or request changes. After confirmation, I will validate and generate the PPTX."
 
 Skip this checkpoint only when the user explicitly requests immediate generation, provides a finalized `deck_spec.json`, or the workflow is non-interactive.
 
