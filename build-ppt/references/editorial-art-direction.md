@@ -35,3 +35,11 @@ Do not think in HTML flow layout. Think in a fixed 16:9 canvas, 12-column grid, 
 - Use `apply_card_style()` for quiet grey cards; avoid borders unless structurally necessary.
 - Use `add_masked_image()` for image-backed text slides.
 - Use `inject_swipe_transition()` before saving every slide.
+
+## Robustness
+
+- Read `robustness.md` before authoring `deck_spec.json`.
+- Let the renderer paginate long content instead of shrinking typography.
+- Never use emoji. Use geometric bullets, hairlines, or SVG/PPT shapes.
+- Prefer abstract `layout_type` intent over hand-authored coordinates.
+- Use `meta.mode: "dark"` for LED screens or online presentations, and `light` for projectors or printable decks.

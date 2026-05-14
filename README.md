@@ -7,6 +7,8 @@
 - Builds editable PowerPoint files with `python-pptx`.
 - Uses a strict canvas-style coordinate system instead of HTML flow layout.
 - Enforces Wallpaper*-grade Swiss visual controls: 12-column grid, 8% safe margins, Ting font, 80pt+ hero titles, tiny chrome, hairline rules, spot color, and Push Left transitions.
+- Adds production robustness: text overflow pagination, emoji stripping, light/dark theme inversion, and abstract component registry input.
+- Accepts UTF-8 JSON with or without BOM, useful on Windows/PowerShell workflows.
 - Supports registered layouts `S01` through `S22`.
 - Validates `deck_spec.json` before generation.
 
@@ -51,9 +53,9 @@ Use this prompt with another agent:
 ```text
 Use the build-ppt skill to create an editable Wallpaper*-grade Swiss-style PPTX deck.
 
-Read build-ppt/SKILL.md and build-ppt/references/editorial-art-direction.md first. Then create deck_spec.json using build-ppt/references/deck-spec.schema.json. Use only registered layouts S01-S22 and one theme: brutalist_tech, swiss_classic, corporate_chic, lime, ikb, lemon, lemon-green, or safety-orange.
+Read build-ppt/SKILL.md, build-ppt/references/editorial-art-direction.md, and build-ppt/references/robustness.md first. Then create deck_spec.json using build-ppt/references/deck-spec.schema.json. Prefer abstract layout_type values over coordinates; direct S01-S22 layouts are also supported. Use one theme: brutalist_tech, swiss_classic, corporate_chic, lime, ikb, lemon, lemon-green, or safety-orange. Use meta.mode or mode for light/dark.
 
-You must abandon HTML flow layout and use absolute PPT canvas coordinates. Use the 12-column grid, 8% safe margins, Ting font, huge 80pt+ titles, tiny 10pt chrome, 0.5pt hairlines, sharp 90-degree geometry, and one spot accent color. Validate with:
+You must abandon HTML flow layout and use absolute PPT canvas coordinates. Use the 12-column grid, 8% safe margins, Ting font, huge 80pt+ titles, tiny 10pt chrome, 0.5pt hairlines, sharp 90-degree geometry, and one spot accent color. Do not use emoji. Let the renderer paginate long text instead of shrinking typography. Validate with:
 
 python build-ppt/scripts/build_pptx.py deck_spec.json --validate-only
 

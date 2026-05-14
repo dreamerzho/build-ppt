@@ -13,7 +13,7 @@ Create editable PowerPoint decks in the Swiss International Style and output nat
 
 1. Choose only the Swiss style for v1. Do not use the electronic magazine style, WebGL backgrounds, HTML transitions, or custom colors.
 2. Use one theme for the whole deck: `brutalist_tech`, `swiss_classic`, `corporate_chic`, `lime`, `ikb`, `lemon`, `lemon-green`, or `safety-orange`. Default to `brutalist_tech` for AI/technology decks and `lime` when the user asks for the original neon AIGC course look.
-3. Draft a `deck_spec.json` that follows `references/deck-spec.schema.json`. Use only registered layout IDs `S01` through `S22`.
+3. Draft a `deck_spec.json` that follows `references/deck-spec.schema.json`. Prefer abstract `layout_type` values from `references/robustness.md`; direct `S01`-`S22` layout IDs are also supported.
 4. Prefer the core layouts first: `S01`, `S02`, `S03`, `S04`, `S05`, `S08`, `S11`, `S15`, `S16`, `S19`, `S20`, `S21`, `S22`.
 5. Run validation before writing the final PPTX:
 
@@ -35,6 +35,10 @@ python C:/Users/Administrator/.codex/skills/build-ppt/scripts/build_pptx.py deck
 - Put diagrams in editable shapes/lines whenever possible. Use images only for photos, screenshots, or supplied visuals.
 - Image paths are resolved relative to the JSON file location. Missing images render as editable placeholders during generation, and fail `--validate-only`.
 - Speaker notes may be supplied with `notes`; the script writes them into PowerPoint notes.
+- Do not use emoji in JSON. The renderer strips emoji and warns, but agents should avoid them entirely.
+- Use `meta.mode` or top-level `mode` for `light` / `dark` theme inversion.
+- Long `body` text is automatically split into continuation slides; never ask the renderer to shrink text below the design system.
+- Prefer `layout_type + content` over raw coordinates. The Python component registry owns placement.
 
 ## Visual Rules
 
@@ -51,5 +55,6 @@ Read `references/editorial-art-direction.md` and `references/swiss-style.md` bef
 - `scripts/build_pptx.py`: CLI renderer and validator.
 - `references/deck-spec.schema.json`: JSON contract for deck specs.
 - `references/editorial-art-direction.md`: System-level aesthetic rules for agents.
+- `references/robustness.md`: Overflow, emoji, dark mode, and component registry rules.
 - `references/swiss-style.md`: theme, typography, spacing, and composition rules.
 - `references/layouts-swiss-pptx.md`: layout intent and field mapping for `S01`-`S22`.

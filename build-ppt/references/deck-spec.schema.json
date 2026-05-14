@@ -9,6 +9,19 @@
     "subtitle": { "type": "string" },
     "author": { "type": "string" },
     "date": { "type": "string" },
+    "mode": { "type": "string", "enum": ["light", "dark"], "default": "light" },
+    "meta": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "theme": {
+          "type": "string",
+          "enum": ["brutalist_tech", "swiss_classic", "corporate_chic", "lime", "ikb", "lemon", "lemon-green", "safety-orange"]
+        },
+        "mode": { "type": "string", "enum": ["light", "dark"] },
+        "aspect_ratio": { "type": "string", "enum": ["16:9"] }
+      }
+    },
     "theme": {
       "type": "string",
       "enum": ["brutalist_tech", "swiss_classic", "corporate_chic", "lime", "ikb", "lemon", "lemon-green", "safety-orange"],
@@ -19,16 +32,22 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["layout", "title"],
+        "required": ["title"],
         "additionalProperties": true,
         "properties": {
+          "layout_type": {
+            "type": "string",
+            "enum": ["cover", "objective_list", "split_statement", "six_cells", "three_layers", "split_hero_right", "duo_compare", "timeline", "the_pause", "brief_grid", "image_hero"]
+          },
           "layout": {
             "type": "string",
             "enum": ["S01", "S02", "S03", "S04", "S05", "S06", "S07", "S08", "S09", "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17", "S18", "S19", "S20", "S21", "S22"]
           },
           "title": { "type": "string" },
+          "headline": { "type": "string" },
           "subtitle": { "type": "string" },
           "kicker": { "type": "string" },
+          "content": { "type": "object", "additionalProperties": true },
           "accent_terms": {
             "oneOf": [
               { "type": "string" },

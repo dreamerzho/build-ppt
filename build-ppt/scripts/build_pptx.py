@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import argparse
+from copy import deepcopy
 import json
 import math
+import re
 import sys
 from pathlib import Path
 from typing import Any, Callable
@@ -48,6 +50,34 @@ MINIMAL_BORDER = "323232"
 CARD_FILL = "F5F5F5"
 
 LAYOUTS = {f"S{i:02d}" for i in range(1, 23)}
+ABSTRACT_LAYOUTS = {
+    "cover": "S01",
+    "objective_list": "S02",
+    "split_statement": "S03",
+    "six_cells": "S04",
+    "three_layers": "S05",
+    "split_hero_right": "S22",
+    "duo_compare": "S08",
+    "timeline": "S11",
+    "the_pause": "S09",
+    "brief_grid": "S16",
+    "image_hero": "S22",
+}
+EMOJI_RE = re.compile(
+    "["
+    "\U0001F1E6-\U0001F1FF"
+    "\U0001F300-\U0001F5FF"
+    "\U0001F600-\U0001F64F"
+    "\U0001F680-\U0001F6FF"
+    "\U0001F700-\U0001F77F"
+    "\U0001F780-\U0001F7FF"
+    "\U0001F800-\U0001F8FF"
+    "\U0001F900-\U0001F9FF"
+    "\U0001FA00-\U0001FAFF"
+    "\u2600-\u27BF"
+    "]+",
+    flags=re.UNICODE,
+)
 
 THEMES = {
     "brutalist_tech": {
@@ -146,6 +176,39 @@ def rgb(hex_value: str) -> RGBColor:
     return RGBColor(int(value[0:2], 16), int(value[2:4], 16), int(value[4:6], 16))
 
 
+def normalize_theme_name(spec: dict[str, Any]) -> str:
+    meta = spec.get("meta") if isinstance(spec.get("meta"), dict) else {}
+    return field_text(spec.get("theme") or meta.get("theme"), "brutalist_tech")
+
+
+def normalize_mode(spec: dict[str, Any]) -> str:
+    meta = spec.get("meta") if isinstance(spec.get("meta"), dict) else {}
+    mode = field_text(spec.get("mode") or meta.get("mode"), "light").lower()
+    return "dark" if mode == "dark" else "light"
+
+
+def raw_mode(spec: dict[str, Any]) -> str:
+    meta = spec.get("meta") if isinstance(spec.get("meta"), dict) else {}
+    return field_text(spec.get("mode") or meta.get("mode"), "light").lower()
+
+
+def get_colors(theme_name: str, mode: str = "light") -> dict[str, str]:
+    palette = THEMES[theme_name]
+    colors = dict(palette)
+    if mode == "dark":
+        colors["paper"] = palette.get("dark", palette["ink"])
+        colors["ink"] = palette.get("paper", "FFFFFF")
+        colors["grey1"] = palette.get("grey2", "334155")
+        colors["grey2"] = palette.get("grey3", "94A3B8")
+        colors["grey3"] = palette.get("grey3", "94A3B8")
+        colors["pattern"] = palette.get("grey2", "334155")
+    else:
+        colors["paper"] = palette.get("paper", "FFFFFF")
+        colors["ink"] = palette.get("ink", "0A0A0A")
+        colors["grey2"] = palette.get("grey2", "C8C8C8")
+    return colors
+
+
 def inch(value: float):
     return Inches(float(value))
 
@@ -165,6 +228,97 @@ def field_text(value: Any, default: str = "") -> str:
     if isinstance(value, list):
         return "\n".join(str(v) for v in value if v is not None)
     return str(value)
+
+
+def contains_emoji(text: Any) -> bool:
+    return bool(EMOJI_RE.search(field_text(text)))
+
+
+def strip_emoji(text: str) -> str:
+    return EMOJI_RE.sub("", text)
+
+
+def sanitize_payload(value: Any, warnings: list[str], path: str = "$") -> Any:
+    if isinstance(value, str):
+        if contains_emoji(value):
+            warnings.append(f"Emoji removed at {path}")
+        return strip_emoji(value)
+    if isinstance(value, list):
+        return [sanitize_payload(item, warnings, f"{path}[{idx}]") for idx, item in enumerate(value)]
+    if isinstance(value, dict):
+        return {key: sanitize_payload(item, warnings, f"{path}.{key}") for key, item in value.items()}
+    return value
+
+
+def paginate_content(text: str, max_chars_per_slide: int = 150) -> list[str]:
+    text = field_text(text).strip()
+    if len(text) <= max_chars_per_slide:
+        return [text] if text else []
+    parts = re.split(r"(?<=[。！？.!?])\s*", text)
+    pages: list[str] = []
+    current = ""
+    for part in parts:
+        if not part:
+            continue
+        if len(part) > max_chars_per_slide:
+            if current:
+                pages.append(current.strip())
+                current = ""
+            pages.extend(part[i : i + max_chars_per_slide].strip() for i in range(0, len(part), max_chars_per_slide))
+            continue
+        if len(current) + len(part) <= max_chars_per_slide:
+            current += part
+        else:
+            pages.append(current.strip())
+            current = part
+    if current:
+        pages.append(current.strip())
+    return [page for page in pages if page]
+
+
+def normalize_abstract_slide(slide: dict[str, Any]) -> dict[str, Any]:
+    normalized = deepcopy(slide)
+    content = normalized.pop("content", None)
+    if isinstance(content, dict):
+        merged = {**content, **normalized}
+        normalized = merged
+    layout_type = field_text(normalized.get("layout_type"))
+    if layout_type and not normalized.get("layout"):
+        normalized["layout"] = ABSTRACT_LAYOUTS.get(layout_type, layout_type)
+    if not normalized.get("title") and normalized.get("headline"):
+        normalized["title"] = normalized["headline"]
+    return normalized
+
+
+def expand_slide_overflow(slide: dict[str, Any], max_chars: int = 150) -> list[dict[str, Any]]:
+    body = slide.get("body")
+    if not isinstance(body, str):
+        return [slide]
+    pages = paginate_content(body, max_chars)
+    if len(pages) <= 1:
+        return [slide]
+    expanded = []
+    for idx, page in enumerate(pages, start=1):
+        clone = deepcopy(slide)
+        clone["body"] = page
+        clone["title"] = f"{field_text(slide.get('title'))} · {idx:02d}"
+        clone["kicker"] = field_text(slide.get("kicker"), "CONTINUED")
+        expanded.append(clone)
+    return expanded
+
+
+def normalize_spec(spec: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    warnings: list[str] = []
+    clean = sanitize_payload(deepcopy(spec), warnings)
+    slides = clean.get("slides") or []
+    normalized_slides: list[dict[str, Any]] = []
+    for raw_slide in slides:
+        if not isinstance(raw_slide, dict):
+            normalized_slides.append(raw_slide)
+            continue
+        normalized_slides.extend(expand_slide_overflow(normalize_abstract_slide(raw_slide)))
+    clean["slides"] = normalized_slides
+    return clean, warnings
 
 
 def item_title(item: Any, fallback: str = "") -> str:
@@ -441,6 +595,21 @@ def add_bottom_nav(slide, index: int, total: int, theme: dict[str, str], *, cove
     add_text(slide, hint, SLIDE_W - MARGIN_X - 2.35, SLIDE_H - 0.32, 2.35, 0.16, size=5.5, color=theme["ink"] if cover else theme["grey3"], align="right")
 
 
+def add_pagination_nav(slide, index: int, total: int, theme: dict[str, str], *, cover: bool = False) -> None:
+    dot_size = 0.035
+    gap = 0.07
+    count = max(total, 12)
+    nav_w = count * dot_size + (count - 1) * gap
+    x0 = (SLIDE_W - nav_w) / 2
+    y = SLIDE_H - 0.18
+    inactive = theme.get("pattern", theme["grey2"]) if cover else "B7B7B3"
+    active = theme["ink"] if cover else theme["accent"]
+    for i in range(count):
+        fill = active if i == index - 1 else inactive
+        add_rect(slide, x0 + i * (dot_size + gap), y, dot_size, dot_size, fill=fill)
+    add_text(slide, "ARROW KEYS · B STATIC · ESC INDEX", SLIDE_W - MARGIN_X - 2.35, SLIDE_H - 0.32, 2.35, 0.16, size=5.5, color=theme["ink"] if cover else theme["grey3"], align="right", style_type="caption")
+
+
 def add_placeholder(slide, x: float, y: float, w: float, h: float, theme: dict[str, str], label: str) -> None:
     add_rect(slide, x, y, w, h, fill=theme["grey1"], line=theme["grey2"])
     add_rule(slide, x, y, x + w, y + h, color=theme["grey2"])
@@ -528,11 +697,11 @@ def add_bullets(slide, items: list[Any], x: float, y: float, w: float, h: float,
         p = tf.paragraphs[0] if idx == 0 else tf.add_paragraph()
         title = item_title(item)
         body = item_body(item)
-        p.text = f"{title} — {body}" if body else title
+        p.text = f"■  {title} - {body}" if body else f"■  {title}"
         p.level = 0
         p.font.name = FONT_NAME
         p.font.size = Pt(size)
-        p.font.color.rgb = rgb(theme["ink"])
+        p.font.color.rgb = rgb(theme["accent"])
         p.space_after = Pt(10)
 
 
@@ -923,9 +1092,12 @@ def validate_spec(spec: dict[str, Any], base_dir: Path, *, strict_images: bool) 
     warnings: list[str] = []
     if not field_text(spec.get("title")):
         errors.append("Deck is missing required field: title")
-    theme = field_text(spec.get("theme"), "brutalist_tech")
+    theme = normalize_theme_name(spec)
     if theme not in THEMES:
         errors.append(f"Unknown theme '{theme}'. Use one of: {', '.join(THEMES)}")
+    mode = raw_mode(spec)
+    if mode not in {"light", "dark"}:
+        errors.append("Mode must be 'light' or 'dark'")
     slides = spec.get("slides")
     if not isinstance(slides, list) or not slides:
         errors.append("Deck must include a non-empty slides array")
@@ -957,7 +1129,7 @@ def validate_spec(spec: dict[str, Any], base_dir: Path, *, strict_images: bool) 
 
 
 def build_pptx(spec: dict[str, Any], base_dir: Path, out_path: Path) -> list[str]:
-    theme = THEMES[field_text(spec.get("theme"), "brutalist_tech")]
+    theme = get_colors(normalize_theme_name(spec), normalize_mode(spec))
     warnings: list[str] = []
     prs = Presentation()
     prs.slide_width = inch(SLIDE_W)
@@ -970,7 +1142,7 @@ def build_pptx(spec: dict[str, Any], base_dir: Path, out_path: Path) -> list[str
         layout = field_text(slide_spec.get("layout"))
         renderer = RENDERERS[layout]
         renderer(slide, spec, slide_spec, idx, total, theme, base_dir, warnings)
-        add_bottom_nav(slide, idx, total, theme, cover=layout == "S01")
+        add_pagination_nav(slide, idx, total, theme, cover=layout == "S01")
         inject_swipe_transition(slide)
         add_notes(slide, slide_spec.get("notes"))
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -980,7 +1152,7 @@ def build_pptx(spec: dict[str, Any], base_dir: Path, out_path: Path) -> list[str
 
 def load_spec(path: Path) -> dict[str, Any]:
     try:
-        with path.open("r", encoding="utf-8") as fh:
+        with path.open("r", encoding="utf-8-sig") as fh:
             return json.load(fh)
     except json.JSONDecodeError as exc:
         raise SystemExit(f"Invalid JSON: {exc}") from exc
@@ -994,14 +1166,14 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     spec_path = args.spec.resolve()
-    spec = load_spec(spec_path)
+    spec, normalization_warnings = normalize_spec(load_spec(spec_path))
     base_dir = spec_path.parent
     errors, validation_warnings = validate_spec(spec, base_dir, strict_images=args.validate_only)
     if errors:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
         return 2
-    for warning in validation_warnings:
+    for warning in normalization_warnings + validation_warnings:
         print(f"WARNING: {warning}", file=sys.stderr)
     if args.validate_only:
         print("OK: deck spec is valid")
