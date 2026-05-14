@@ -12,7 +12,7 @@ Create editable PowerPoint decks in the Swiss International Style and output nat
 ## Workflow
 
 1. Choose only the Swiss style for v1. Do not use the electronic magazine style, WebGL backgrounds, HTML transitions, or custom colors.
-2. Use one theme for the whole deck: `lime`, `ikb`, `lemon`, `lemon-green`, or `safety-orange`. Default to `lime` for AIGC, AI image generation, courses, and decks that should resemble the original guizang Swiss visual language.
+2. Use one theme for the whole deck: `brutalist_tech`, `swiss_classic`, `corporate_chic`, `lime`, `ikb`, `lemon`, `lemon-green`, or `safety-orange`. Default to `brutalist_tech` for AI/technology decks and `lime` when the user asks for the original neon AIGC course look.
 3. Draft a `deck_spec.json` that follows `references/deck-spec.schema.json`. Use only registered layout IDs `S01` through `S22`.
 4. Prefer the core layouts first: `S01`, `S02`, `S03`, `S04`, `S05`, `S08`, `S11`, `S15`, `S16`, `S19`, `S20`, `S21`, `S22`.
 5. Run validation before writing the final PPTX:
@@ -38,16 +38,18 @@ python C:/Users/Administrator/.codex/skills/build-ppt/scripts/build_pptx.py deck
 
 ## Visual Rules
 
-Read `references/swiss-style.md` before creating a deck. The essentials:
+Read `references/editorial-art-direction.md` and `references/swiss-style.md` before creating a deck. The essentials:
 
-- Use paper white `#fafaf8`, ink black `#0a0a0a`, shared greys, and one accent color. Prefer `lime` when the user wants the original neon AIGC course look.
-- Use sparse chrome, bottom pagination dots, editable micro texture on cover pages, huge light-weight titles, strong grid alignment, and generous whitespace.
-- Do not use gradients, shadows, rounded cards, mixed accent colors, decorative blobs, or center-aligned top titles.
+- Think in absolute PowerPoint canvas coordinates, not HTML flow layout.
+- Use a 12-column grid, 8% safe margins, sparse chrome, bottom pagination dots, editable micro texture on cover pages, huge titles, and generous whitespace.
+- Use `Ting` as the locked font family. Hero/title text must be around 80-88pt; chrome must be 10pt or smaller.
+- Do not use gradients, shadows, rounded cards, mixed accent colors, decorative blobs, or center-aligned multi-line titles.
 - Treat images as evidence blocks. Use `S22` for one hero image and `S15`/`S16` for image grids.
 
 ## Resources
 
 - `scripts/build_pptx.py`: CLI renderer and validator.
 - `references/deck-spec.schema.json`: JSON contract for deck specs.
+- `references/editorial-art-direction.md`: System-level aesthetic rules for agents.
 - `references/swiss-style.md`: theme, typography, spacing, and composition rules.
 - `references/layouts-swiss-pptx.md`: layout intent and field mapping for `S01`-`S22`.

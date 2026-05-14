@@ -8,7 +8,10 @@ Use one accent color per deck.
 
 | Theme | Accent | Accent Text | Use |
 |---|---:|---:|---|
-| `lime` | `#B8F000` | `#0a0a0a` | default, AIGC course decks, AI image generation, original neon look |
+| `brutalist_tech` | `#CCFF00` | `#0F172A` | default, AI, technology, industrial, cyber editorial |
+| `swiss_classic` | `#E6321E` | `#ffffff` | art, design, brand, classic Swiss editorial |
+| `corporate_chic` | `#00D4FF` | `#0A2540` | finance, consulting, real estate, business decks |
+| `lime` | `#B8F000` | `#0a0a0a` | AIGC course decks, AI image generation, original neon look |
 | `ikb` | `#002FA7` | `#ffffff` | AI, technology, design, business |
 | `lemon` | `#FFD500` | `#0a0a0a` | youth, activity, consumer, retail |
 | `lemon-green` | `#C5E803` | `#0a0a0a` | ecology, future, health, emerging tech |
@@ -24,8 +27,8 @@ Shared colors:
 
 ## Typography
 
-- Use Aptos/Arial fallback in PPTX for portability.
-- Main titles: very large, light, mostly black; use the accent color only for selected words on white pages.
+- Use `Ting` as the locked font family.
+- Main titles: very large, around 80-88pt, mostly black; use the accent color only for selected words on white pages.
 - Kicker/meta: small uppercase mono-like labels where possible.
 - Body: concise, low-to-medium density. Avoid long paragraphs.
 - Numbers: large, tabular-looking, often paired with tiny labels.
@@ -33,6 +36,7 @@ Shared colors:
 ## Layout
 
 - Default slide size is 16:9 widescreen.
+- Use a 12-column absolute coordinate grid with 8% safe margins.
 - Keep a strong left/top content axis.
 - Use sparse top chrome, tiny metadata, bottom pagination dots, and generous empty space.
 - Cover slides should use full accent background plus editable dot/cross texture.

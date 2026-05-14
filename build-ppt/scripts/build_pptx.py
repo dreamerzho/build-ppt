@@ -14,6 +14,7 @@ from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR, MSO_AUTO_SIZE
+from pptx.oxml.xmlchemy import OxmlElement
 from pptx.util import Inches, Pt
 
 
@@ -23,7 +24,7 @@ SLIDE_WIDTH = Inches(SLIDE_W)
 SLIDE_HEIGHT = Inches(SLIDE_H)
 
 # Visual control constants. Keep renderers in absolute-canvas mode, not HTML flow mode.
-SAFE_MARGIN_X = SLIDE_W * 0.05
+SAFE_MARGIN_X = SLIDE_W * 0.08
 SAFE_MARGIN_Y = SLIDE_H * 0.08
 MARGIN_X = SAFE_MARGIN_X
 MARGIN_TOP = SAFE_MARGIN_Y
@@ -31,6 +32,9 @@ MARGIN_BOTTOM = SAFE_MARGIN_Y
 CONTENT_W = SLIDE_W - (MARGIN_X * 2)
 HEADER_LABEL_POS = (SAFE_MARGIN_X, 0.4)
 PAGE_NUMBER_POS = (SLIDE_W - 1.5, 0.4)
+COLUMNS = 12
+GUTTER = 0.15
+COL_W = (SLIDE_W - (SAFE_MARGIN_X * 2) - (GUTTER * (COLUMNS - 1))) / COLUMNS
 
 FONT_NAME = "Ting"
 TITLE_FONT_SIZE = 80
@@ -46,6 +50,39 @@ CARD_FILL = "F5F5F5"
 LAYOUTS = {f"S{i:02d}" for i in range(1, 23)}
 
 THEMES = {
+    "brutalist_tech": {
+        "paper": "F8FAFC",
+        "ink": "0F172A",
+        "grey1": "F1F5F9",
+        "grey2": "334155",
+        "grey3": "94A3B8",
+        "accent": "CCFF00",
+        "accent_on": "0F172A",
+        "pattern": "E7FF66",
+        "dark": "0F172A",
+    },
+    "swiss_classic": {
+        "paper": "F5F2EB",
+        "ink": "1C1C1C",
+        "grey1": "EEEAE2",
+        "grey2": "B4B4B4",
+        "grey3": "787878",
+        "accent": "E6321E",
+        "accent_on": "FFFFFF",
+        "pattern": "F0A096",
+        "dark": "1C1C1C",
+    },
+    "corporate_chic": {
+        "paper": "FFFFFF",
+        "ink": "0A2540",
+        "grey1": "F3F7FA",
+        "grey2": "C8D2DC",
+        "grey3": "8A96A8",
+        "accent": "00D4FF",
+        "accent_on": "0A2540",
+        "pattern": "A8F0FF",
+        "dark": "0A2540",
+    },
     "lime": {
         "paper": "FAFAF8",
         "ink": "0A0A0A",
@@ -55,6 +92,7 @@ THEMES = {
         "accent": "B8F000",
         "accent_on": "0A0A0A",
         "pattern": "E8FF72",
+        "dark": "0A0A0A",
     },
     "ikb": {
         "paper": "FAFAF8",
@@ -65,6 +103,7 @@ THEMES = {
         "accent": "002FA7",
         "accent_on": "FFFFFF",
         "pattern": "6686D8",
+        "dark": "0A0A0A",
     },
     "lemon": {
         "paper": "FAFAF8",
@@ -75,6 +114,7 @@ THEMES = {
         "accent": "FFD500",
         "accent_on": "0A0A0A",
         "pattern": "FFF08A",
+        "dark": "0A0A0A",
     },
     "lemon-green": {
         "paper": "FAFAF8",
@@ -85,6 +125,7 @@ THEMES = {
         "accent": "C5E803",
         "accent_on": "0A0A0A",
         "pattern": "E8FF72",
+        "dark": "0A0A0A",
     },
     "safety-orange": {
         "paper": "FAFAF8",
@@ -95,6 +136,7 @@ THEMES = {
         "accent": "FF6B35",
         "accent_on": "FFFFFF",
         "pattern": "FFC3A8",
+        "dark": "0A0A0A",
     },
 }
 
@@ -106,6 +148,15 @@ def rgb(hex_value: str) -> RGBColor:
 
 def inch(value: float):
     return Inches(float(value))
+
+
+def get_grid(start_col: int, span: int) -> tuple[float, float]:
+    """Return left and width in inches for the 12-column canvas grid."""
+    start_col = max(0, min(COLUMNS - 1, int(start_col)))
+    span = max(1, min(COLUMNS - start_col, int(span)))
+    left = SAFE_MARGIN_X + (start_col * (COL_W + GUTTER))
+    width = (span * COL_W) + ((span - 1) * GUTTER)
+    return left, width
 
 
 def field_text(value: Any, default: str = "") -> str:
@@ -181,6 +232,8 @@ def lock_text_box(shape, *, style_type: str = "body") -> None:
 
 
 def style_font_size(style_type: str, explicit_size: float | None = None) -> float:
+    if style_type == "hero":
+        return 88
     if style_type == "title":
         return TITLE_FONT_SIZE
     if style_type == "subtitle":
@@ -198,10 +251,17 @@ def apply_text_style(shape, *, style_type: str = "body", color: str = "0A0A0A", 
     lock_text_box(shape, style_type=style_type)
     size = style_font_size(style_type)
     for paragraph in shape.text_frame.paragraphs:
+        paragraph.alignment = PP_ALIGN.LEFT
+        if style_type in {"hero", "title"}:
+            paragraph.line_spacing = 0.9
+        elif style_type == "body":
+            paragraph.line_spacing = 1.4
         for run in paragraph.runs:
+            if style_type == "kicker":
+                run.text = " ".join(list(str(run.text).upper()))
             run.font.name = FONT_NAME
             run.font.size = Pt(size)
-            run.font.bold = (style_type == "title") if bold is None else bold
+            run.font.bold = (style_type in {"hero", "title"}) if bold is None else bold
             run.font.color.rgb = rgb(color)
 
 
@@ -245,13 +305,17 @@ def add_text(
     parts = lines.split("\n") if lines else [""]
     for idx, part in enumerate(parts):
         p = tf.paragraphs[0] if idx == 0 else tf.add_paragraph()
-        p.text = part
+        p.text = " ".join(list(part.upper())) if style_type == "kicker" else part
         p.alignment = {"left": PP_ALIGN.LEFT, "center": PP_ALIGN.CENTER, "right": PP_ALIGN.RIGHT}[align]
         p.space_after = Pt(0)
+        if style_type in {"hero", "title"}:
+            p.line_spacing = 0.9
+        elif style_type == "body":
+            p.line_spacing = 1.4
         for run in p.runs:
             run.font.name = FONT_NAME
             run.font.size = Pt(resolved_size)
-            run.font.bold = bold or style_type == "title"
+            run.font.bold = bold or style_type in {"hero", "title"}
             run.font.color.rgb = rgb(color)
     return shape
 
@@ -271,8 +335,7 @@ def add_rect(
     shape.fill.solid()
     shape.fill.fore_color.rgb = rgb(fill)
     if line:
-        shape.line.color.rgb = rgb(line)
-        shape.line.width = Pt(line_width)
+        apply_minimal_border(shape, color=line, width=line_width)
     else:
         shape.line.fill.background()
     return shape
@@ -281,7 +344,7 @@ def add_rect(
 def add_rule(slide, x1: float, y1: float, x2: float, y2: float, *, color: str, width: float = 0.5):
     line = slide.shapes.add_connector(1, inch(x1), inch(y1), inch(x2), inch(y2))
     line.line.color.rgb = rgb(color)
-    line.line.width = Pt(width)
+    line.line.width = Pt(min(width, MAX_LINE_WIDTH))
     return line
 
 
@@ -323,22 +386,20 @@ def add_text_rich(
     shape = slide.shapes.add_textbox(inch(x), inch(y), inch(w), inch(h))
     tf = shape.text_frame
     tf.clear()
-    tf.word_wrap = True
-    tf.margin_left = Inches(0)
-    tf.margin_right = Inches(0)
-    tf.margin_top = Inches(0)
-    tf.margin_bottom = Inches(0)
+    lock_text_box(shape, style_type="title" if size >= TITLE_FONT_SIZE * 0.75 else "body")
     lines = field_text(text).split("\n") if field_text(text) else [""]
     for idx, line_text in enumerate(lines):
         p = tf.paragraphs[0] if idx == 0 else tf.add_paragraph()
         p.alignment = {"left": PP_ALIGN.LEFT, "center": PP_ALIGN.CENTER, "right": PP_ALIGN.RIGHT}[align]
         p.space_after = Pt(0)
+        if size >= TITLE_FONT_SIZE * 0.75:
+            p.line_spacing = 0.9
         for segment, is_accent in split_accent_runs(line_text, accent_terms or []):
             run = p.add_run()
             run.text = segment
-            run.font.name = font
+            run.font.name = FONT_NAME
             run.font.size = Pt(size)
-            run.font.bold = False
+            run.font.bold = size >= TITLE_FONT_SIZE * 0.75
             run.font.color.rgb = rgb(accent_color if is_accent else color)
     return shape
 
@@ -397,12 +458,37 @@ def add_image(slide, base_dir: Path, image: Any, x: float, y: float, w: float, h
     add_placeholder(slide, x, y, w, h, theme, raw)
 
 
+def add_masked_image(slide, base_dir: Path, image: Any, x: float, y: float, w: float, h: float, theme: dict[str, str], warnings: list[str], *, transparency: float = 0.35) -> None:
+    add_image(slide, base_dir, image, x, y, w, h, theme, warnings)
+    overlay = add_rect(slide, x, y, w, h, fill=theme.get("dark", theme["ink"]))
+    overlay.fill.transparency = max(0, min(100, int(transparency * 100)))
+    overlay.line.fill.background()
+
+
+def add_rotated_meta(slide, text: str, top_pos: float, theme: dict[str, str]) -> None:
+    box = add_text(slide, " ".join(list(text.upper())), 0.1, top_pos, 3.0, 0.5, size=CHROME_FONT_SIZE, color=theme["grey3"], style_type="kicker")
+    box.rotation = -90.0
+
+
+def add_hairline(slide, left: float, top: float, width: float, theme: dict[str, str]) -> None:
+    add_rule(slide, left, top, left + width, top, color=theme["grey2"], width=HAIRLINE_WIDTH)
+
+
+def inject_swipe_transition(slide) -> None:
+    transition = OxmlElement("p:transition")
+    transition.set("spd", "med")
+    push = OxmlElement("p:push")
+    push.set("dir", "l")
+    transition.append(push)
+    slide.element.insert(2, transition)
+
+
 def add_chrome(slide, spec: dict[str, Any], slide_spec: dict[str, Any], index: int, total: int, theme: dict[str, str], *, invert: bool = False) -> None:
     color = theme["paper"] if invert else theme["grey3"]
     left = field_text(slide_spec.get("kicker") or spec.get("title") or "SWISS")
     right = f"{field_text(spec.get('author'), 'COURSE')} · {index:02d} / {total:02d}"
-    add_text(slide, left, MARGIN_X, 0.43, 6.6, 0.18, size=6.8, color=color, uppercase=True)
-    add_text(slide, right, SLIDE_W - MARGIN_X - 2.5, 0.43, 2.5, 0.18, size=6.8, color=color, align="right", uppercase=True)
+    add_text(slide, left, HEADER_LABEL_POS[0], HEADER_LABEL_POS[1], 6.6, 0.18, size=CHROME_FONT_SIZE, color=color, uppercase=True, style_type="chrome")
+    add_text(slide, right, PAGE_NUMBER_POS[0], PAGE_NUMBER_POS[1], 1.5, 0.18, size=CHROME_FONT_SIZE, color=color, align="right", uppercase=True, style_type="chrome")
 
 
 def add_notes(slide, notes: Any) -> None:
@@ -437,14 +523,14 @@ def add_bullets(slide, items: list[Any], x: float, y: float, w: float, h: float,
     shape = slide.shapes.add_textbox(inch(x), inch(y), inch(w), inch(h))
     tf = shape.text_frame
     tf.clear()
-    tf.word_wrap = True
+    lock_text_box(shape, style_type="body")
     for idx, item in enumerate(items):
         p = tf.paragraphs[0] if idx == 0 else tf.add_paragraph()
         title = item_title(item)
         body = item_body(item)
         p.text = f"{title} — {body}" if body else title
         p.level = 0
-        p.font.name = "Arial"
+        p.font.name = FONT_NAME
         p.font.size = Pt(size)
         p.font.color.rgb = rgb(theme["ink"])
         p.space_after = Pt(10)
@@ -837,7 +923,7 @@ def validate_spec(spec: dict[str, Any], base_dir: Path, *, strict_images: bool) 
     warnings: list[str] = []
     if not field_text(spec.get("title")):
         errors.append("Deck is missing required field: title")
-    theme = field_text(spec.get("theme"), "lime")
+    theme = field_text(spec.get("theme"), "brutalist_tech")
     if theme not in THEMES:
         errors.append(f"Unknown theme '{theme}'. Use one of: {', '.join(THEMES)}")
     slides = spec.get("slides")
@@ -871,7 +957,7 @@ def validate_spec(spec: dict[str, Any], base_dir: Path, *, strict_images: bool) 
 
 
 def build_pptx(spec: dict[str, Any], base_dir: Path, out_path: Path) -> list[str]:
-    theme = THEMES[field_text(spec.get("theme"), "lime")]
+    theme = THEMES[field_text(spec.get("theme"), "brutalist_tech")]
     warnings: list[str] = []
     prs = Presentation()
     prs.slide_width = inch(SLIDE_W)
@@ -885,6 +971,7 @@ def build_pptx(spec: dict[str, Any], base_dir: Path, out_path: Path) -> list[str
         renderer = RENDERERS[layout]
         renderer(slide, spec, slide_spec, idx, total, theme, base_dir, warnings)
         add_bottom_nav(slide, idx, total, theme, cover=layout == "S01")
+        inject_swipe_transition(slide)
         add_notes(slide, slide_spec.get("notes"))
     out_path.parent.mkdir(parents=True, exist_ok=True)
     prs.save(out_path)

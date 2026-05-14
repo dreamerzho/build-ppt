@@ -11,8 +11,8 @@
     "date": { "type": "string" },
     "theme": {
       "type": "string",
-      "enum": ["lime", "ikb", "lemon", "lemon-green", "safety-orange"],
-      "default": "lime"
+      "enum": ["brutalist_tech", "swiss_classic", "corporate_chic", "lime", "ikb", "lemon", "lemon-green", "safety-orange"],
+      "default": "brutalist_tech"
     },
     "slides": {
       "type": "array",
