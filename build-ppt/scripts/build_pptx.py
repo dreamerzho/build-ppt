@@ -84,6 +84,31 @@ EMOJI_RE = re.compile(
     flags=re.UNICODE,
 )
 
+FA_ICONS = {
+    "microchip": "\uf2db",
+    "laptop": "\uf108",
+    "server": "\uf233",
+    "code": "\uf121",
+    "chart-line": "\uf201",
+    "bullseye": "\uf140",
+    "arrow-trend-up": "\ue097",
+    "user": "\uf007",
+    "users": "\uf0c0",
+    "id-badge": "\uf2c1",
+    "calendar": "\uf133",
+    "clock": "\uf017",
+    "list-check": "\uf0ae",
+    "pen-nib": "\uf5ad",
+    "wand": "\uf2d4",
+    "layer-group": "\uf5fd",
+    "gear": "\uf013",
+    "shield-halved": "\uf3ed",
+    "globe": "\uf0ac",
+    "lightbulb": "\uf0eb",
+}
+FA_FONT_FAMILY = "Font Awesome 6 Free Solid"
+FA_FALLBACK = "\uf0c8"
+
 THEMES = {
     "brutalist_tech": {
         "paper": "F8FAFC",
@@ -349,6 +374,14 @@ def item_body(item: Any, fallback: str = "") -> str:
     return fallback
 
 
+def item_icon(item: Any, fallback: str = "microchip") -> str:
+    if isinstance(item, dict):
+        icon = item.get("icon")
+        if icon:
+            return str(icon).lower().strip().replace(" ", "-")
+    return fallback
+
+
 def metric_value(metric: Any) -> str:
     if isinstance(metric, dict):
         value = field_text(metric.get("value"))
@@ -607,6 +640,29 @@ def add_text_rich(
     return shape
 
 
+def add_fa_icon(slide, icon_name: str, x: float, y: float, size: float, color: str) -> None:
+    unicode_char = FA_ICONS.get(icon_name.lower(), "\uf0c8")
+    box_size = size * 0.035
+    shape = slide.shapes.add_textbox(inch(x), inch(y), inch(box_size), inch(box_size))
+    tf = shape.text_frame
+    tf.clear()
+    lock_text_box(shape, style_type="custom")
+    tf.margin_left = tf.margin_top = tf.margin_right = tf.margin_bottom = Inches(0)
+    p = tf.paragraphs[0]
+    p.alignment = PP_ALIGN.LEFT
+    p.space_after = Pt(0)
+    p.space_before = Pt(0)
+    run = p.add_run()
+    run.text = unicode_char
+    run.font.name = FA_FONT_FAMILY
+    run.font.size = Pt(size)
+    run.font.color.rgb = rgb(color)
+    rPr = run._r.get_or_add_rPr()
+    ea = OxmlElement("a:ea")
+    ea.set("typeface", FA_FONT_FAMILY)
+    rPr.append(ea)
+
+
 def add_micro_texture(slide, theme: dict[str, str], *, dense: bool = False) -> None:
     texture_path = build_texture_png(theme, dense=dense)
     slide.shapes.add_picture(str(texture_path), 0, 0, width=inch(SLIDE_W), height=inch(SLIDE_H))
@@ -833,8 +889,10 @@ def render_six_cells(slide, spec, slide_spec, index, total, theme, base_dir, war
         y = 2.05 + row * (cell_h + 0.18)
         add_rect(slide, x, y, cell_w, cell_h, fill=theme["grey1"])
         pad_x, pad_y = 0.35, 0.35
-        add_text(slide, item_title(item), x + pad_x, y + pad_y, cell_w - pad_x*2, 0.35, size=15, color=theme["ink"], bold=True)
-        add_text(slide, item_body(item), x + pad_x, y + pad_y + 0.5, cell_w - pad_x*2, 0.55, size=10.5, color=theme["grey3"])
+        icon_name = item_icon(item)
+        add_fa_icon(slide, icon_name, x + pad_x, y + 0.25, 16, theme.get("pattern", theme["grey2"]))
+        add_text(slide, item_title(item), x + pad_x, y + 0.95, cell_w - pad_x*2, 0.35, size=15, color=theme["ink"], bold=True)
+        add_text(slide, item_body(item), x + pad_x, y + 1.5, cell_w - pad_x*2, 0.55, size=10.5, color=theme["grey3"])
 
 
 def render_three_layers(slide, spec, slide_spec, index, total, theme, base_dir, warnings):
@@ -851,9 +909,10 @@ def render_three_layers(slide, spec, slide_spec, index, total, theme, base_dir, 
         text = theme["accent_on"] if i == 0 else theme["ink"]
         add_rect(slide, x, y, card_w, h, fill=fill)
         pad = 0.4
-        add_text(slide, f"{i + 1:02d}", x + pad, y + 0.28, card_w - pad*2, 0.28, size=10, color=text, uppercase=True)
-        add_text(slide, item_title(item), x + pad, y + 0.72, card_w - pad*2, 0.7, size=20, color=text)
-        add_text(slide, item_body(item), x + pad, y + 1.65, card_w - pad*2, 1.1, size=11, color=text)
+        icon_name = item_icon(item)
+        add_fa_icon(slide, icon_name, x + pad, y + 0.2, 20, text)
+        add_text(slide, item_title(item), x + pad, y + 0.75, card_w - pad*2, 0.7, size=20, color=text)
+        add_text(slide, item_body(item), x + pad, y + 1.7, card_w - pad*2, 1.1, size=11, color=text)
 
 
 def render_kpi_tower(slide, spec, slide_spec, index, total, theme, base_dir, warnings):
