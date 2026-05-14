@@ -1,60 +1,93 @@
 ---
 name: build-ppt
-description: Generate editable Swiss International Style PowerPoint decks (.pptx) from a structured deck_spec.json. Use when Codex needs to create a real PPTX file, convert an outline into a Swiss-style presentation, render editable slides with text boxes/shapes/images, or produce a PowerPoint alternative to HTML slide decks.
+description: Generate editable Swiss International Style PowerPoint decks (.pptx) from deck_spec.json. Use for PPT, PPTX, PowerPoint, editable slides, Swiss-style decks, course decks, pitch decks, reports, make a pptx, create slides, and HTML-to-PPTX alternatives.
 ---
 
 # Build PPT Skill
 
-## Overview
+Create native editable `.pptx` decks in a Swiss editorial style. Main flow: align intent -> write `deck_spec.json` -> review outline -> validate -> render -> iterate.
 
-Create editable PowerPoint decks in the Swiss International Style and output native `.pptx` files instead of HTML. The primary workflow is: clarify the deck, write `deck_spec.json`, run `scripts/build_pptx.py`, inspect or iterate.
+## Phase 1: Intent
 
-## Workflow
+Before writing the spec, identify:
 
-1. Choose only the Swiss style for v1. Do not use the electronic magazine style, WebGL backgrounds, HTML transitions, or custom colors.
-2. Use one theme for the whole deck: `brutalist_tech`, `swiss_classic`, `corporate_chic`, `lime`, `ikb`, `lemon`, `lemon-green`, or `safety-orange`. Default to `brutalist_tech` for AI/technology decks and `lime` when the user asks for the original neon AIGC course look.
-3. Draft a `deck_spec.json` that follows `references/deck-spec.schema.json`. Prefer abstract `layout_type` values from `references/robustness.md`; direct `S01`-`S22` layout IDs are also supported.
-4. Prefer the core layouts first: `S01`, `S02`, `S03`, `S04`, `S05`, `S08`, `S11`, `S15`, `S16`, `S19`, `S20`, `S21`, `S22`.
-5. Run validation before writing the final PPTX:
+- Topic, audience, use case, approximate slide count, and required assets.
+- Mode: `light` for projectors/print, `dark` for LED screens or online presentations.
+- Theme: choose from `references/swiss-style.md`. Default to `brutalist_tech` for AI/technology; use `lime` for the original neon AIGC course look.
+- Scope boundary: this skill outputs native PPTX, not HTML, WebGL, video, or arbitrary custom color systems.
 
-```bash
-python C:/Users/Administrator/.codex/skills/build-ppt/scripts/build_pptx.py deck_spec.json --validate-only
-```
+## Phase 2: Spec
 
-6. Generate the deck:
+Write `deck_spec.json` using `references/deck-spec.schema.json`.
 
-```bash
-python C:/Users/Administrator/.codex/skills/build-ppt/scripts/build_pptx.py deck_spec.json --out output.pptx
-```
-
-## Deck Spec Rules
-
-- Keep `slides[].layout` explicit. Never invent layout IDs.
-- Keep page titles short, left-aligned, and anchored near the top-left content axis unless the chosen layout is a split or statement layout.
-- Put visible slide text in PowerPoint text boxes, not images.
-- Put diagrams in editable shapes/lines whenever possible. Use images only for photos, screenshots, or supplied visuals.
-- Image paths are resolved relative to the JSON file location. Missing images render as editable placeholders during generation, and fail `--validate-only`.
-- Speaker notes may be supplied with `notes`; the script writes them into PowerPoint notes.
-- Do not use emoji in JSON. The renderer strips emoji and warns, but agents should avoid them entirely.
+- Prefer abstract `layout_type` values from `references/robustness.md`; direct `S01`-`S22` layout IDs are also supported.
+- Prefer polished layouts: `S01`, `S02`, `S03`, `S04`, `S05`, `S08`, `S11`, `S15`, `S16`, `S19`, `S20`, `S21`, `S22`.
+- Keep each slide to one idea. Long `body` text is auto-paginated; do not shrink typography to force dense content onto one page.
+- Do not use emoji. The renderer strips emoji and warns, but agents should avoid them entirely.
 - Use `meta.mode` or top-level `mode` for `light` / `dark` theme inversion.
-- Long `body` text is automatically split into continuation slides; never ask the renderer to shrink text below the design system.
-- Prefer `layout_type + content` over raw coordinates. The Python component registry owns placement.
+- Put visible text in PowerPoint text boxes. Use editable shapes/lines for diagrams. Use images only for photos, screenshots, or supplied visuals.
+- Image paths are relative to the JSON file. Missing images render as editable placeholders during generation and fail `--validate-only`.
 
-## Visual Rules
+Visual requirements:
 
-Read `references/editorial-art-direction.md` and `references/swiss-style.md` before creating a deck. The essentials:
+- Read `references/editorial-art-direction.md` before authoring.
+- Use absolute PowerPoint canvas thinking, not HTML flow layout.
+- Use `Ting`, 12-column grid, 8% safe margins, huge 80-88pt titles, tiny chrome, 0.5pt hairlines, sharp geometry, one spot accent color.
 
-- Think in absolute PowerPoint canvas coordinates, not HTML flow layout.
-- Use a 12-column grid, 8% safe margins, sparse chrome, bottom pagination dots, editable micro texture on cover pages, huge titles, and generous whitespace.
-- Use `Ting` as the locked font family. Hero/title text must be around 80-88pt; chrome must be 10pt or smaller.
-- Do not use gradients, shadows, rounded cards, mixed accent colors, decorative blobs, or center-aligned multi-line titles.
-- Treat images as evidence blocks. Use `S22` for one hero image and `S15`/`S16` for image grids.
+## Phase 2.5: Checkpoint
+
+Before rendering, show the user a concise outline unless they explicitly asked for direct or batch generation.
+
+Include:
+
+- Deck title, theme, mode, and approximate slide count.
+- Per-slide list: title plus `layout_type` or `Sxx` layout.
+- Required image list and which pages will use placeholders.
+- Prompt: "Confirm this outline or send edits; after confirmation I will validate and generate the PPTX."
+
+Skip this checkpoint only when the user clearly asks to generate immediately, provides a finalized `deck_spec.json`, or the workflow is automated/non-interactive.
+
+## Phase 3: Validate and Render
+
+Run validation first:
+
+```bash
+python scripts/build_pptx.py deck_spec.json --validate-only
+```
+
+Fix all validation errors and rerun until it passes.
+
+Render:
+
+```bash
+python scripts/build_pptx.py deck_spec.json --out output.pptx
+```
+
+The output must be a native editable `.pptx`, not screenshots or HTML.
+
+## Phase 4: Iterate
+
+After delivery, iterate by editing `deck_spec.json`, validating again, and rerendering. Keep the same theme and layout system unless the user asks for a new art direction.
+
+## Recovery
+
+| Problem | Recovery |
+|---|---|
+| `ModuleNotFoundError: pptx` | Install `python-pptx`. |
+| `ModuleNotFoundError: PIL` or image handling failure | Install `Pillow`. |
+| Font or text layout issues | Ensure `Ting` is available; install `fonttools` if font inspection is needed. |
+| `FileNotFoundError: deck_spec.json` | Check the JSON path relative to the working directory. |
+| Validation reports bad layout or missing field | Fix `layout`, `layout_type`, `title`, `theme`, `mode`, or image paths, then rerun validation. |
+| Image missing during generation | Placeholder is rendered; replace the image path or swap the placeholder in PowerPoint. |
+| Script path not found | Run from the skill directory or use relative path `python scripts/build_pptx.py ...`. |
+| Python too old | Use Python 3.10+ for best compatibility. |
 
 ## Resources
 
-- `scripts/build_pptx.py`: CLI renderer and validator.
-- `references/deck-spec.schema.json`: JSON contract for deck specs.
-- `references/editorial-art-direction.md`: System-level aesthetic rules for agents.
-- `references/robustness.md`: Overflow, emoji, dark mode, and component registry rules.
-- `references/swiss-style.md`: theme, typography, spacing, and composition rules.
-- `references/layouts-swiss-pptx.md`: layout intent and field mapping for `S01`-`S22`.
+- `scripts/build_pptx.py`: renderer and validator.
+- `references/deck-spec.schema.json`: JSON contract.
+- `references/editorial-art-direction.md`: aesthetic rules.
+- `references/robustness.md`: overflow, emoji, dark mode, component registry.
+- `references/swiss-style.md`: themes, typography, spacing, composition.
+- `references/layouts-swiss-pptx.md`: `S01`-`S22` layout mapping.
+- `references/sample_deck.json`: minimal example.

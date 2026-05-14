@@ -1,0 +1,17 @@
+[
+  {
+    "id": 1,
+    "prompt": "用 build-ppt 帮我做一个 AI Agent 架构的 PPT，10 页左右",
+    "expected": "Agent drafts deck_spec.json with Swiss style, uses layout_type or S01-S22 layouts, validates, then generates native .pptx."
+  },
+  {
+    "id": 2,
+    "prompt": "帮我做一个 AIGC 课程介绍 PPT，要原来的 neon 风格，dark 模式",
+    "expected": "Agent chooses lime theme, sets mode dark, validates, and generates with theme inversion."
+  },
+  {
+    "id": 3,
+    "prompt": "从这段大纲生成 PPTX：(1)封面 (2)背景数据汇报 (3)方案对比 (4)总结",
+    "expected": "Agent maps outline to layouts such as cover, ledger/data, duo_compare, and pause/closing; creates valid deck_spec.json."
+  }
+]

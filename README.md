@@ -11,6 +11,7 @@
 - Accepts UTF-8 JSON with or without BOM, useful on Windows/PowerShell workflows.
 - Supports registered layouts `S01` through `S22`.
 - Validates `deck_spec.json` before generation.
+- Includes smoke-test prompts in `tests/test-prompts.json`.
 
 ## Install
 
