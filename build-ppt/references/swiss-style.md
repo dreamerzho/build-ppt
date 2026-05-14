@@ -27,7 +27,7 @@ Shared colors:
 
 ## Typography
 
-- Use `Ting` as the locked font family.
+- Use the Microsoft YaHei family as the locked font system: titles use `Microsoft YaHei` bold, body/chrome/captions use `Microsoft YaHei Light`.
 - Main titles: very large, around 80-88pt, mostly black; use the accent color only for selected words on white pages.
 - Kicker/meta: small uppercase mono-like labels where possible.
 - Body: concise, low-to-medium density. Avoid long paragraphs.

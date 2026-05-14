@@ -32,7 +32,7 @@ Visual requirements:
 
 - Read `references/editorial-art-direction.md` before authoring.
 - Use absolute PowerPoint canvas thinking, not HTML flow layout.
-- Use `Ting`, 12-column grid, 8% safe margins, huge 80-88pt titles, tiny chrome, 0.5pt hairlines, sharp geometry, one spot accent color.
+- Use Microsoft YaHei: bold `Microsoft YaHei` for titles and `Microsoft YaHei Light` for body/chrome/captions, plus 12-column grid, 8% safe margins, huge 80-88pt titles, tiny chrome, 0.5pt hairlines, sharp geometry, one spot accent color.
 
 ## Phase 2.5: Checkpoint
 
@@ -75,7 +75,7 @@ After delivery, iterate by editing `deck_spec.json`, validating again, and reren
 |---|---|
 | `ModuleNotFoundError: pptx` | Install `python-pptx`. |
 | `ModuleNotFoundError: PIL` or image handling failure | Install `Pillow`. |
-| Font or text layout issues | Ensure `Ting` is available; install `fonttools` if font inspection is needed. |
+| Font or text layout issues | Ensure Microsoft YaHei / Microsoft YaHei Light are available; install `fonttools` if font inspection is needed. |
 | `FileNotFoundError: deck_spec.json` | Check the JSON path relative to the working directory. |
 | Validation reports bad layout or missing field | Fix `layout`, `layout_type`, `title`, `theme`, `mode`, or image paths, then rerun validation. |
 | Image missing during generation | Placeholder is rendered; replace the image path or swap the placeholder in PowerPoint. |

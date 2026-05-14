@@ -5,13 +5,16 @@ from __future__ import annotations
 
 import argparse
 from copy import deepcopy
+import hashlib
 import json
 import math
 import re
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any, Callable
 
+from PIL import Image, ImageDraw
 from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE
@@ -38,7 +41,9 @@ COLUMNS = 12
 GUTTER = 0.15
 COL_W = (SLIDE_W - (SAFE_MARGIN_X * 2) - (GUTTER * (COLUMNS - 1))) / COLUMNS
 
-FONT_NAME = "Ting"
+FONT_NAME = "Microsoft YaHei"
+TITLE_FONT_NAME = "Microsoft YaHei"
+BODY_FONT_NAME = "Microsoft YaHei Light"
 TITLE_FONT_SIZE = 80
 SUBTITLE_FONT_SIZE = 18
 BODY_FONT_SIZE = 24
@@ -230,6 +235,17 @@ def field_text(value: Any, default: str = "") -> str:
     return str(value)
 
 
+def has_cjk(text: str) -> bool:
+    return bool(re.search(r"[\u3400-\u9fff]", text))
+
+
+def letterspace_label(text: str) -> str:
+    text = field_text(text).upper()
+    if has_cjk(text):
+        return text
+    return " ".join(list(text))
+
+
 def contains_emoji(text: Any) -> bool:
     return bool(EMOJI_RE.search(field_text(text)))
 
@@ -401,6 +417,16 @@ def style_font_size(style_type: str, explicit_size: float | None = None) -> floa
     return explicit_size if explicit_size is not None else BODY_FONT_SIZE
 
 
+def font_family_for_style(style_type: str, size: float, *, bold: bool = False) -> str:
+    if style_type in {"hero", "title"} or bold:
+        return TITLE_FONT_NAME
+    if style_type != "custom":
+        return BODY_FONT_NAME
+    if size >= BODY_FONT_SIZE:
+        return TITLE_FONT_NAME
+    return BODY_FONT_NAME
+
+
 def apply_text_style(shape, *, style_type: str = "body", color: str = "0A0A0A", bold: bool | None = None) -> None:
     lock_text_box(shape, style_type=style_type)
     size = style_font_size(style_type)
@@ -412,10 +438,11 @@ def apply_text_style(shape, *, style_type: str = "body", color: str = "0A0A0A", 
             paragraph.line_spacing = 1.4
         for run in paragraph.runs:
             if style_type == "kicker":
-                run.text = " ".join(list(str(run.text).upper()))
-            run.font.name = FONT_NAME
+                run.text = letterspace_label(str(run.text))
+            is_bold = (style_type in {"hero", "title"}) if bold is None else bold
+            run.font.name = font_family_for_style(style_type, size, bold=is_bold)
             run.font.size = Pt(size)
-            run.font.bold = (style_type in {"hero", "title"}) if bold is None else bold
+            run.font.bold = is_bold
             run.font.color.rgb = rgb(color)
 
 
@@ -459,7 +486,7 @@ def add_text(
     parts = lines.split("\n") if lines else [""]
     for idx, part in enumerate(parts):
         p = tf.paragraphs[0] if idx == 0 else tf.add_paragraph()
-        p.text = " ".join(list(part.upper())) if style_type == "kicker" else part
+        p.text = letterspace_label(part) if style_type == "kicker" else part
         p.alignment = {"left": PP_ALIGN.LEFT, "center": PP_ALIGN.CENTER, "right": PP_ALIGN.RIGHT}[align]
         p.space_after = Pt(0)
         if style_type in {"hero", "title"}:
@@ -467,9 +494,10 @@ def add_text(
         elif style_type == "body":
             p.line_spacing = 1.4
         for run in p.runs:
-            run.font.name = FONT_NAME
+            is_bold = bold or style_type in {"hero", "title"} or (style_type == "custom" and resolved_size >= BODY_FONT_SIZE)
+            run.font.name = font_family_for_style(style_type, resolved_size, bold=is_bold)
             run.font.size = Pt(resolved_size)
-            run.font.bold = bold or style_type in {"hero", "title"}
+            run.font.bold = is_bold
             run.font.color.rgb = rgb(color)
     return shape
 
@@ -540,43 +568,55 @@ def add_text_rich(
     shape = slide.shapes.add_textbox(inch(x), inch(y), inch(w), inch(h))
     tf = shape.text_frame
     tf.clear()
-    lock_text_box(shape, style_type="title" if size >= TITLE_FONT_SIZE * 0.75 else "body")
+    is_title = size >= BODY_FONT_SIZE
+    lock_text_box(shape, style_type="title" if is_title else "body")
     lines = field_text(text).split("\n") if field_text(text) else [""]
     for idx, line_text in enumerate(lines):
         p = tf.paragraphs[0] if idx == 0 else tf.add_paragraph()
         p.alignment = {"left": PP_ALIGN.LEFT, "center": PP_ALIGN.CENTER, "right": PP_ALIGN.RIGHT}[align]
         p.space_after = Pt(0)
-        if size >= TITLE_FONT_SIZE * 0.75:
+        if is_title:
             p.line_spacing = 0.9
         for segment, is_accent in split_accent_runs(line_text, accent_terms or []):
             run = p.add_run()
             run.text = segment
-            run.font.name = FONT_NAME
+            run.font.name = font_family_for_style("title" if is_title else "body", size, bold=is_title)
             run.font.size = Pt(size)
-            run.font.bold = size >= TITLE_FONT_SIZE * 0.75
+            run.font.bold = is_title
             run.font.color.rgb = rgb(accent_color if is_accent else color)
     return shape
 
 
 def add_micro_texture(slide, theme: dict[str, str], *, dense: bool = False) -> None:
-    color = theme.get("pattern", theme["grey2"])
-    step_x = 0.16 if dense else 0.22
-    step_y = 0.16 if dense else 0.22
-    start_x = 0.05
-    start_y = 0.05
-    rows = int((SLIDE_H - 0.1) / step_y)
-    cols = int((SLIDE_W - 0.1) / step_x)
-    for row in range(rows):
-        for col in range(cols):
-            if (row * 7 + col * 5) % (3 if dense else 5) != 0:
+    texture_path = build_texture_png(theme, dense=dense)
+    slide.shapes.add_picture(str(texture_path), 0, 0, width=inch(SLIDE_W), height=inch(SLIDE_H))
+
+
+def build_texture_png(theme: dict[str, str], *, dense: bool = False) -> Path:
+    key = f"{theme.get('accent')}:{theme.get('pattern')}:{dense}:{SLIDE_W}:{SLIDE_H}"
+    name = hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
+    path = Path(tempfile.gettempdir()) / f"build_ppt_texture_{name}.png"
+    if path.exists():
+        return path
+    scale = 120
+    width = int(SLIDE_W * scale)
+    height = int(SLIDE_H * scale)
+    img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    pattern = theme.get("pattern", theme["grey2"]).strip().lstrip("#")
+    rgba = (int(pattern[0:2], 16), int(pattern[2:4], 16), int(pattern[4:6], 16), 110)
+    step = 18 if dense else 27
+    for y in range(8, height - 8, step):
+        for x in range(8, width - 8, step):
+            if ((x // step) * 7 + (y // step) * 5) % (3 if dense else 5) != 0:
                 continue
-            x = start_x + col * step_x
-            y = start_y + row * step_y
-            if (row + col) % 4 == 0:
-                add_rect(slide, x, y + 0.016, 0.05, 0.008, fill=color)
-                add_rect(slide, x + 0.021, y - 0.005, 0.008, 0.05, fill=color)
+            if ((x // step) + (y // step)) % 4 == 0:
+                draw.line((x - 3, y, x + 3, y), fill=rgba, width=1)
+                draw.line((x, y - 3, x, y + 3), fill=rgba, width=1)
             else:
-                add_rect(slide, x, y, 0.018, 0.018, fill=color)
+                draw.rectangle((x, y, x + 1, y + 1), fill=rgba)
+    img.save(path)
+    return path
 
 
 def add_bottom_nav(slide, index: int, total: int, theme: dict[str, str], *, cover: bool = False) -> None:
@@ -635,7 +675,7 @@ def add_masked_image(slide, base_dir: Path, image: Any, x: float, y: float, w: f
 
 
 def add_rotated_meta(slide, text: str, top_pos: float, theme: dict[str, str]) -> None:
-    box = add_text(slide, " ".join(list(text.upper())), 0.1, top_pos, 3.0, 0.5, size=CHROME_FONT_SIZE, color=theme["grey3"], style_type="kicker")
+    box = add_text(slide, letterspace_label(text), 0.1, top_pos, 3.0, 0.5, size=CHROME_FONT_SIZE, color=theme["grey3"], style_type="kicker")
     box.rotation = -90.0
 
 
@@ -699,7 +739,7 @@ def add_bullets(slide, items: list[Any], x: float, y: float, w: float, h: float,
         body = item_body(item)
         p.text = f"■  {title} - {body}" if body else f"■  {title}"
         p.level = 0
-        p.font.name = FONT_NAME
+        p.font.name = BODY_FONT_NAME
         p.font.size = Pt(size)
         p.font.color.rgb = rgb(theme["accent"])
         p.space_after = Pt(10)
@@ -732,7 +772,9 @@ def render_cover(slide, spec, slide_spec, index, total, theme, base_dir, warning
 def render_timeline_kpi(slide, spec, slide_spec, index, total, theme, base_dir, warnings):
     add_bg(slide, theme)
     add_chrome(slide, spec, slide_spec, index, total, theme)
-    add_text(slide, field_text(slide_spec.get("section") or "253班 · 课程目标"), MARGIN_X, 0.9, 4.0, 0.18, size=6.4, color=theme["grey3"])
+    label_x, label_w = get_grid(0, 4)
+    list_x, list_w = get_grid(0, 8)
+    add_text(slide, field_text(slide_spec.get("section") or "253班 · 课程目标"), label_x, 0.9, label_w, 0.18, size=6.4, color=theme["grey3"])
     add_title(slide, slide_spec, theme, y=1.18, h=1.6, size=43)
     items = slide_spec.get("items") or []
     metrics = slide_spec.get("metrics") or []
@@ -740,19 +782,21 @@ def render_timeline_kpi(slide, spec, slide_spec, index, total, theme, base_dir, 
     for i, item in enumerate(items[:5]):
         y = 3.0 + i * 0.74
         label = labels[i] if i < len(labels) and labels[i] else item_title(item, f"{i + 1:02d}").upper()
-        add_text(slide, f"- {i + 1:02d} / {label}", MARGIN_X, y, 2.0, 0.16, size=6.5, color=theme["accent"], uppercase=True)
-        add_text(slide, item_title(item, f"Item {i + 1}"), MARGIN_X, y + 0.22, 5.4, 0.34, size=17, color=theme["ink"])
-        add_text(slide, item_body(item), MARGIN_X, y + 0.58, 7.7, 0.24, size=9.8, color=theme["grey3"])
+        add_text(slide, f"- {i + 1:02d} / {label}", list_x, y, list_w * 0.28, 0.16, size=6.5, color=theme["accent"], uppercase=True)
+        add_text(slide, item_title(item, f"Item {i + 1}"), list_x, y + 0.22, list_w * 0.7, 0.34, size=17, color=theme["ink"])
+        add_text(slide, item_body(item), list_x, y + 0.58, list_w, 0.24, size=9.8, color=theme["grey3"])
 
 
 def render_split_statement(slide, spec, slide_spec, index, total, theme, base_dir, warnings):
     add_bg(slide, theme)
+    left_x, left_w = get_grid(0, 5)
+    right_x, right_w = get_grid(6, 6)
     add_rect(slide, 0, 0, SLIDE_W * 0.48, SLIDE_H, fill=theme["ink"])
-    add_text(slide, slide_spec.get("kicker") or "STATEMENT", 0.55, 0.55, 4.5, 0.28, size=9, color=theme["grey2"], uppercase=True)
-    add_text(slide, slide_spec.get("title"), 0.55, 1.2, 5.1, 3.5, size=42, color=theme["paper"])
+    add_text(slide, slide_spec.get("kicker") or "STATEMENT", left_x, 0.55, left_w, 0.28, size=9, color=theme["grey2"], uppercase=True)
+    add_text(slide, slide_spec.get("title"), left_x, 1.2, left_w, 3.5, size=42, color=theme["paper"])
     add_chrome(slide, spec, slide_spec, index, total, theme)
-    add_text(slide, slide_spec.get("body"), 7.0, 1.25, 4.8, 1.4, size=18, color=theme["ink"])
-    add_bullets(slide, slide_spec.get("items") or [], 7.0, 3.05, 4.8, 2.7, theme, size=13)
+    add_text(slide, slide_spec.get("body"), right_x, 1.25, right_w, 1.4, size=18, color=theme["ink"])
+    add_bullets(slide, slide_spec.get("items") or [], right_x, 3.05, right_w, 2.7, theme, size=13)
 
 
 def render_six_cells(slide, spec, slide_spec, index, total, theme, base_dir, warnings):
@@ -760,13 +804,12 @@ def render_six_cells(slide, spec, slide_spec, index, total, theme, base_dir, war
     add_chrome(slide, spec, slide_spec, index, total, theme)
     add_title(slide, slide_spec, theme)
     items = (slide_spec.get("items") or [])[:6]
-    cell_w = (CONTENT_W - 0.32) / 3
     cell_h = 1.45
     for i in range(6):
         item = items[i] if i < len(items) else {"title": f"{i + 1:02d}", "body": ""}
         col = i % 3
         row = i // 3
-        x = MARGIN_X + col * (cell_w + 0.16)
+        x, cell_w = get_grid(col * 4, 4)
         y = 2.05 + row * (cell_h + 0.18)
         add_rect(slide, x, y, cell_w, cell_h, fill=theme["grey1"])
         add_text(slide, item_title(item), x + 0.16, y + 0.15, cell_w - 0.32, 0.35, size=15, color=theme["ink"], bold=True)
@@ -778,10 +821,9 @@ def render_three_layers(slide, spec, slide_spec, index, total, theme, base_dir, 
     add_chrome(slide, spec, slide_spec, index, total, theme)
     add_title(slide, slide_spec, theme)
     items = (slide_spec.get("items") or [])[:3]
-    card_w = (CONTENT_W - 0.36) / 3
     for i in range(3):
         item = items[i] if i < len(items) else {"title": f"Layer {i + 1}", "body": ""}
-        x = MARGIN_X + i * (card_w + 0.18)
+        x, card_w = get_grid(i * 4, 4)
         y = 2.0 + i * 0.25
         h = 3.55 - i * 0.25
         fill = theme["accent"] if i == 0 else theme["grey1"]
@@ -832,14 +874,17 @@ def render_duo_compare(slide, spec, slide_spec, index, total, theme, base_dir, w
     add_chrome(slide, spec, slide_spec, index, total, theme)
     add_title(slide, slide_spec, theme)
     items = slide_spec.get("items") or []
-    add_rule(slide, SLIDE_W / 2, 1.8, SLIDE_W / 2, 6.55, color=theme["grey2"])
+    left_x, left_w = get_grid(0, 5)
+    right_x, right_w = get_grid(6, 5)
+    divider_x, _ = get_grid(5, 1)
+    add_rule(slide, divider_x + COL_W, 1.8, divider_x + COL_W, 6.55, color=theme["grey2"])
     for i in range(2):
         item = items[i] if i < len(items) else {"title": "Column", "body": ""}
-        x = MARGIN_X if i == 0 else SLIDE_W / 2 + 0.42
-        add_text(slide, item_title(item), x, 2.0, 5.1, 0.62, size=26, color=theme["accent"] if i == 1 else theme["ink"])
-        add_text(slide, item_body(item), x, 2.92, 5.0, 1.3, size=14, color=theme["grey3"])
+        x, w = (left_x, left_w) if i == 0 else (right_x, right_w)
+        add_text(slide, item_title(item), x, 2.0, w, 0.62, size=26, color=theme["accent"] if i == 1 else theme["ink"])
+        add_text(slide, item_body(item), x, 2.92, w, 1.3, size=14, color=theme["grey3"])
         subitems = item.get("items", []) if isinstance(item, dict) else []
-        add_bullets(slide, subitems, x, 4.35, 4.9, 1.65, theme, size=11)
+        add_bullets(slide, subitems, x, 4.35, w, 1.65, theme, size=11)
 
 
 def render_statement(slide, spec, slide_spec, index, total, theme, base_dir, warnings):
@@ -895,13 +940,15 @@ def render_three_forces(slide, spec, slide_spec, index, total, theme, base_dir, 
     add_bg(slide, theme)
     add_chrome(slide, spec, slide_spec, index, total, theme)
     items = (slide_spec.get("items") or [])[:3]
-    add_rect(slide, MARGIN_X, 1.1, 3.7, 5.2, fill=theme["ink"])
-    add_text(slide, slide_spec.get("title"), MARGIN_X + 0.28, 1.42, 3.1, 2.2, size=28, color=theme["paper"])
+    hero_x, hero_w = get_grid(0, 4)
+    card_x, card_w = get_grid(5, 7)
+    add_rect(slide, hero_x, 1.1, hero_w, 5.2, fill=theme["ink"])
+    add_text(slide, slide_spec.get("title"), hero_x + 0.28, 1.42, hero_w - 0.56, 2.2, size=28, color=theme["paper"])
     for i, item in enumerate(items):
         y = 1.25 + i * 1.55
-        add_rect(slide, 5.05, y, 6.95, 1.18, fill=theme["grey1"])
-        add_text(slide, item_title(item), 5.28, y + 0.2, 4.8, 0.32, size=17, color=theme["ink"])
-        add_text(slide, item_body(item), 5.28, y + 0.62, 5.9, 0.28, size=10.5, color=theme["grey3"])
+        add_rect(slide, card_x, y, card_w, 1.18, fill=theme["grey1"])
+        add_text(slide, item_title(item), card_x + 0.23, y + 0.2, card_w * 0.72, 0.32, size=17, color=theme["ink"])
+        add_text(slide, item_body(item), card_x + 0.23, y + 0.62, card_w - 0.46, 0.28, size=10.5, color=theme["grey3"])
 
 
 def render_loop(slide, spec, slide_spec, index, total, theme, base_dir, warnings):

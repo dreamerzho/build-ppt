@@ -27,9 +27,11 @@ Do not think in HTML flow layout. Think in a fixed 16:9 canvas, 12-column grid, 
 
 ## Implementation Rules
 
-- Use `FONT_NAME = "Ting"`.
+- Use the Microsoft YaHei family: title/hero text uses `Microsoft YaHei` with bold enabled; body, chrome, captions, and notes use `Microsoft YaHei Light`.
 - Use `SAFE_MARGIN_X = SLIDE_W * 0.08` and `SAFE_MARGIN_Y = SLIDE_H * 0.08`.
-- Use `get_grid(start_col, span)` for horizontal placement.
+- Use `get_grid(start_col, span)` for horizontal placement in renderers. Hard-coded X coordinates are allowed only for intentional full-bleed fields, chrome, pagination marks, and decorative micro-geometry.
+- Render micro-texture as one cached transparent PNG layer. Do not create hundreds of editable square/cross shapes on a slide.
+- Use CJK-safe label spacing. Do not manually insert spaces between Chinese characters to fake letter spacing.
 - Use `lock_text_box()` on every text box: zero margins and `MSO_AUTO_SIZE.NONE`.
 - Use `apply_minimal_border()` for any line or outline.
 - Use `apply_card_style()` for quiet grey cards; avoid borders unless structurally necessary.

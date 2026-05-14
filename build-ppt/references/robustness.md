@@ -65,3 +65,13 @@ The renderer maps `layout_type` to a registered S-layout and owns the coordinate
 | `split_hero_right` / `image_hero` | `S22` |
 
 Do not emit raw `x`, `y`, `left`, `top`, or arbitrary placement data in JSON unless a future renderer explicitly supports it.
+
+## Renderer Performance And Typography
+
+Renderer functions should derive horizontal placement from `get_grid(start_col, span)` wherever possible. Keep hard-coded coordinates limited to full-bleed backgrounds, fixed chrome, and small decorative accents.
+
+Micro-texture must be inserted as one cached transparent PNG layer, not hundreds of PPT shape nodes. This keeps exported decks editable without making PowerPoint sluggish.
+
+Kicker letter spacing is Latin-only. For CJK text, keep characters adjacent so PowerPoint does not treat every Chinese character as a separate word at line breaks.
+
+Use Microsoft YaHei as the title family and Microsoft YaHei Light for body-level text. Titles should be explicitly bold; body copy should stay light.
