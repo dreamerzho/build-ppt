@@ -41,9 +41,10 @@ COLUMNS = 12
 GUTTER = 0.15
 COL_W = (SLIDE_W - (SAFE_MARGIN_X * 2) - (GUTTER * (COLUMNS - 1))) / COLUMNS
 
-FONT_NAME = "Microsoft YaHei"
-TITLE_FONT_NAME = "Microsoft YaHei"
-BODY_FONT_NAME = "Microsoft YaHei Light"
+FONT_NAME = "Noto Sans SC"
+TITLE_FONT_NAME = "Noto Sans SC"
+TITLE_FONT_BLACK = "Noto Sans SC Black"
+BODY_FONT_NAME = "Noto Sans SC Light"
 TITLE_FONT_SIZE = 80
 SUBTITLE_FONT_SIZE = 18
 BODY_FONT_SIZE = 24
@@ -669,7 +670,7 @@ def add_micro_texture(slide, theme: dict[str, str], *, dense: bool = False) -> N
 
 
 def build_texture_png(theme: dict[str, str], *, dense: bool = False) -> Path:
-    key = f"{theme.get('accent')}:{theme.get('pattern')}:{dense}:{SLIDE_W}:{SLIDE_H}"
+    key = f"v3{theme.get('accent')}:{theme.get('pattern')}:{dense}:{SLIDE_W}:{SLIDE_H}"
     name = hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
     path = Path(tempfile.gettempdir()) / f"build_ppt_texture_{name}.png"
     if path.exists():
@@ -679,18 +680,31 @@ def build_texture_png(theme: dict[str, str], *, dense: bool = False) -> Path:
     height = int(SLIDE_H * scale)
     img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
-    pattern = theme.get("pattern", theme["grey2"]).strip().lstrip("#")
-    rgba = (int(pattern[0:2], 16), int(pattern[2:4], 16), int(pattern[4:6], 16), 55)
-    step = 18 if dense else 27
-    for y in range(8, height - 8, step):
-        for x in range(8, width - 8, step):
-            if ((x // step) * 7 + (y // step) * 5) % (3 if dense else 5) != 0:
+    pcolor = theme.get("pattern", theme.get("grey2", "707070")).strip().lstrip("#")
+    try:
+        r = int(pcolor[0:2], 16)
+        g = int(pcolor[2:4], 16)
+        b = int(pcolor[4:6], 16)
+    except Exception:
+        r, g, b = 112, 112, 112
+    acolor = theme.get("accent", "0A0A0A").strip().lstrip("#")
+    try:
+        ar = int(acolor[0:2], 16)
+        ag = int(acolor[2:4], 16)
+        ab = int(acolor[4:6], 16)
+    except Exception:
+        ar, ag, ab = 10, 10, 10
+    rgba_light = (r, g, b, 22)
+    rgba_dark = (ar, ag, ab, 12)
+    step = 13 if dense else 19
+    for y_ in range(4, height - 4, step):
+        for x_ in range(4, width - 4, step):
+            if dense and ((x_ // step) + (y_ // step)) % 3 != 0:
                 continue
-            if ((x // step) + (y // step)) % 4 == 0:
-                draw.line((x - 1, y, x + 1, y), fill=rgba, width=1)
-                draw.line((x, y - 1, x, y + 1), fill=rgba, width=1)
-            else:
-                draw.rectangle((x, y, x + 1, y + 1), fill=rgba)
+            if not dense and ((x_ // step) * 7 + (y_ // step) * 5) % 5 != 0:
+                continue
+            sz = 1
+            draw.rectangle((x_, y_, x_ + sz, y_ + sz), fill=rgba_light if dense else rgba_dark)
     img.save(path)
     return path
 
@@ -825,24 +839,43 @@ def render_cover(slide, spec, slide_spec, index, total, theme, base_dir, warning
     add_bg(slide, theme, "accent")
     add_micro_texture(slide, theme, dense=True)
     add_chrome(slide, spec, slide_spec, index, total, theme, invert=True)
-    add_text(slide, field_text(slide_spec.get("eyebrow") or "AIGC · 电商物料 AI 生图 · 不止像素"), MARGIN_X, 0.72, 5.6, 0.16, size=6.8, color=theme["paper"])
-    add_text(slide, slide_spec.get("kicker") or "BEYOND PIXELS · COURSE", MARGIN_X, 1.08, 5.8, 0.18, size=7.4, color=theme["ink"], uppercase=True)
-    add_text_rich(
+    # Eyebrow: tiny mono at very top-left, pushed into margin for industrial feel
+    add_text(slide, field_text(slide_spec.get("eyebrow") or "AIGC · 电商物料 AI 生图 · 不止像素"), MARGIN_X, 0.68, 5.6, 0.16, size=6, color=theme["paper"])
+    # Kicker: negative Y-compensation to nearly touch top chrome
+    add_text(slide, slide_spec.get("kicker") or "BEYOND PIXELS · COURSE", MARGIN_X, 0.98, 5.8, 0.18, size=6.8, color=theme["ink"], uppercase=True)
+    # MAIN TITLE: 120pt, FONT_BLACK, extreme vertical impact, Y-axis negative compensation
+    title_size = 120
+    title_y = 1.2  # compressed Y allows giant text to dominate
+    title_w = 9.2  # ultra-wide text box for maximum presence
+    title_h = 3.5  # tall enough for multi-line
+    shape = add_text_rich(
         slide,
         slide_spec.get("title"),
         MARGIN_X,
-        2.28,
-        8.45,
-        2.38,
-        size=55,
+        title_y,
+        title_w,
+        title_h,
+        size=title_size,
         color=theme["ink"],
         accent_color=theme["ink"],
         accent_terms=[],
         font="Arial",
     )
-    add_text(slide, slide_spec.get("subtitle") or spec.get("subtitle"), MARGIN_X, 6.05, 5.8, 0.48, size=14, color=theme["ink"])
+    # Force COVER title to use BLACK weight via direct XML injection
+    tf = shape.text_frame
+    for para in tf.paragraphs:
+        for run in para.runs:
+            run.font.name = TITLE_FONT_BLACK
+            run.font.size = Pt(title_size)
+            run.font.bold = True
+            rPr = run._r.get_or_add_rPr()
+            ea = OxmlElement("a:ea")
+            ea.set("typeface", TITLE_FONT_BLACK)
+            rPr.append(ea)
+            pPr = para._p.get_or_add_pPr()
+    add_text(slide, slide_spec.get("subtitle") or spec.get("subtitle"), MARGIN_X, 6.1, 5.8, 0.48, size=13, color=theme["ink"])
     meta = " · ".join(v for v in [field_text(slide_spec.get("author") or spec.get("author")), field_text(slide_spec.get("date") or spec.get("date"))] if v)
-    add_text(slide, meta or "253班 · 2025", MARGIN_X, 6.78, 4.2, 0.16, size=6.5, color=theme["ink"], uppercase=True)
+    add_text(slide, meta or "253班 · 2025", MARGIN_X, 6.8, 4.2, 0.16, size=6, color=theme["ink"], uppercase=True)
 
 
 def render_timeline_kpi(slide, spec, slide_spec, index, total, theme, base_dir, warnings):
@@ -880,19 +913,19 @@ def render_six_cells(slide, spec, slide_spec, index, total, theme, base_dir, war
     add_chrome(slide, spec, slide_spec, index, total, theme)
     add_title(slide, slide_spec, theme)
     items = (slide_spec.get("items") or [])[:6]
-    cell_h = 1.45
+    cell_h = 1.78
     for i in range(6):
         item = items[i] if i < len(items) else {"title": f"{i + 1:02d}", "body": ""}
         col = i % 3
         row = i // 3
         x, cell_w = get_grid(col * 4, 4)
-        y = 2.05 + row * (cell_h + 0.18)
+        y = 2.0 + row * (cell_h + 0.25)
         add_rect(slide, x, y, cell_w, cell_h, fill=theme["grey1"])
-        pad_x, pad_y = 0.35, 0.35
+        pad_x = 0.35
         icon_name = item_icon(item)
         add_fa_icon(slide, icon_name, x + pad_x, y + 0.25, 16, theme.get("pattern", theme["grey2"]))
-        add_text(slide, item_title(item), x + pad_x, y + 0.95, cell_w - pad_x*2, 0.35, size=15, color=theme["ink"], bold=True)
-        add_text(slide, item_body(item), x + pad_x, y + 1.5, cell_w - pad_x*2, 0.55, size=10.5, color=theme["grey3"])
+        add_text(slide, item_title(item), x + pad_x, y + 0.82, cell_w - pad_x*2, 0.34, size=15, color=theme["ink"], bold=True)
+        add_text(slide, item_body(item), x + pad_x, y + 1.2, cell_w - pad_x*2, 0.42, size=10.5, color=theme["grey3"])
 
 
 def render_three_layers(slide, spec, slide_spec, index, total, theme, base_dir, warnings):

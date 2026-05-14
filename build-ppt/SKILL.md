@@ -97,7 +97,7 @@ When using **`S04` (six_cells)** or **`S05` (three_layers)**, you **MUST** add a
 
 ### Visual References
 
-- Use Microsoft YaHei (bold) for titles, Microsoft YaHei Light for body/chrome/captions.
+- Use Noto Sans SC for titles, Noto Sans SC Black for cover impact, and Noto Sans SC Light for body/chrome/captions.
 - Read `references/editorial-art-direction.md` before authoring.
 - Use absolute canvas thinking, not HTML flow layout.
 - 12-column grid, 8% safe margins, 0.5pt hairlines, sharp geometry.
@@ -147,8 +147,8 @@ After delivery, iterate by editing `deck_spec.json`, validating, and rerendering
 |---|---|
 | `ModuleNotFoundError: pptx` | Install `python-pptx`. |
 | `ModuleNotFoundError: PIL` | Install `Pillow`. |
-| Font/text layout issues | Ensure Microsoft YaHei / Microsoft YaHei Light are available; install `fonttools` if needed. |
-| Icon(s) missing | People not seeing the tiny icon glyphs? Make sure "Font Awesome 6 Free Solid" font is installed on the machine generating the PPTX. |
+| Font/text layout issues | Ensure Noto Sans SC / Noto Sans SC Light / Noto Sans SC Black are available; install `fonttools` if needed. |
+| Icon(s) missing | People not seeing the tiny icon glyphs? Make sure "Font Awesome 7 Free Solid" font is installed on the machine generating the PPTX. |
 | `FileNotFoundError: deck_spec.json` | Check the JSON path relative to the working directory. |
 | Validation reports bad layout or missing field | Fix `layout`, `layout_type`, `title`, `theme`, `mode`, or image paths, rerun validation. |
 | Image missing during generation | Placeholder rendered; replace in PowerPoint or fix the image path. |

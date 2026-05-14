@@ -27,7 +27,7 @@ Shared colors:
 
 ## Typography
 
-- Use the Microsoft YaHei family as the locked font system: titles use `Microsoft YaHei` bold, body/chrome/captions use `Microsoft YaHei Light`.
+- Use the Noto Sans SC family as the locked font system: titles use `Noto Sans SC`, cover impact can use `Noto Sans SC Black`, and body/chrome/captions use `Noto Sans SC Light`.
 - Main titles: very large, around 80-88pt, mostly black; use the accent color only for selected words on white pages.
 - Kicker/meta: small uppercase mono-like labels where possible.
 - Body: concise, low-to-medium density. Avoid long paragraphs.

@@ -74,4 +74,4 @@ Micro-texture must be inserted as one cached transparent PNG layer, not hundreds
 
 Kicker letter spacing is Latin-only. For CJK text, keep characters adjacent so PowerPoint does not treat every Chinese character as a separate word at line breaks.
 
-Use Microsoft YaHei as the title family and Microsoft YaHei Light for body-level text. Titles should be explicitly bold; body copy should stay light.
+Use Noto Sans SC as the title family and Noto Sans SC Light for body-level text. Cover slides may use Noto Sans SC Black for impact. Titles should be explicitly bold; body copy should stay light.

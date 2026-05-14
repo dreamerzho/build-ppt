@@ -27,7 +27,7 @@ Do not think in HTML flow layout. Think in a fixed 16:9 canvas, 12-column grid, 
 
 ## Implementation Rules
 
-- Use the Microsoft YaHei family: title/hero text uses `Microsoft YaHei` with bold enabled; body, chrome, captions, and notes use `Microsoft YaHei Light`.
+- Use the Noto Sans SC family: title/hero text uses `Noto Sans SC`, cover impact text may use `Noto Sans SC Black`, and body/chrome/captions use `Noto Sans SC Light`.
 - Use `SAFE_MARGIN_X = SLIDE_W * 0.08` and `SAFE_MARGIN_Y = SLIDE_H * 0.08`.
 - Use `get_grid(start_col, span)` for horizontal placement in renderers. Hard-coded X coordinates are allowed only for intentional full-bleed fields, chrome, pagination marks, and decorative micro-geometry.
 - Render micro-texture as one cached transparent PNG layer. Do not create hundreds of editable square/cross shapes on a slide.
