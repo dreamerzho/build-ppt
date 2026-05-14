@@ -49,14 +49,42 @@ Approved layouts:
 |---|---|---|
 | `cover` | `S01` | Cover page — big title |
 | `split_statement` | `S03` | Left-dark / right-light statement |
-| `six_cells` | `S04` | Six-cell grid (brief overview) |
-| `three_layers` | `S05` | Three vertically stacked cards |
+| `six_cells` | `S04` | Six-cell grid — **requires `icon` field** |
+| `three_layers` | `S05` | Three stacked cards — **requires `icon` field** |
 | `duo_compare` | `S08` | Two-column side-by-side |
 | `the_pause` | `S09` | Giant centered statement (chapter break) |
 | `timeline` | `S11` | Horizontal timeline |
 | `image_hero` | `S22` | Full-bleed single image with text overlay |
 
 Prefer polished layouts: `S01`, `S02`, `S03`, `S04`, `S05`, `S08`, `S11`, `S15`, `S16`, `S19`, `S20`, `S21`, `S22`.
+
+### Vector Icon System
+
+When using **`S04` (six_cells)** or **`S05` (three_layers)**, you **MUST** add an `icon` field to every object in the `items` array. This gives each card a scalable, font-based vector icon — no external images needed.
+
+- `icon` value: a single **lowercase English noun** (FontAwesome semantic keyword).
+- **Recommended icon vocabulary**:
+
+| Category | Icon keywords |
+|---|---|
+| Tech/System | `microchip`, `laptop`, `server`, `code` |
+| Data/Goals | `chart-line`, `bullseye`, `arrow-trend-up` |
+| People/Roles | `user`, `users`, `id-badge` |
+| Time/Process | `calendar`, `clock`, `list-check` |
+| Creative/Design | `pen-nib`, `wand-magic-sparkles`, `layer-group` |
+
+- **JSON example**:
+```json
+"items": [
+  {
+    "icon": "microchip",
+    "title": "科技数码",
+    "body": "手机/耳机/智能穿戴，强调质感、精密感和未来科技调性。"
+  }
+]
+```
+
+- The renderer automatically maps `icon` → FontAwesome Unicode and renders it as a vector text box above the card's title.
 
 ### Text Discipline
 
@@ -120,6 +148,7 @@ After delivery, iterate by editing `deck_spec.json`, validating, and rerendering
 | `ModuleNotFoundError: pptx` | Install `python-pptx`. |
 | `ModuleNotFoundError: PIL` | Install `Pillow`. |
 | Font/text layout issues | Ensure Microsoft YaHei / Microsoft YaHei Light are available; install `fonttools` if needed. |
+| Icon(s) missing | People not seeing the tiny icon glyphs? Make sure "Font Awesome 6 Free Solid" font is installed on the machine generating the PPTX. |
 | `FileNotFoundError: deck_spec.json` | Check the JSON path relative to the working directory. |
 | Validation reports bad layout or missing field | Fix `layout`, `layout_type`, `title`, `theme`, `mode`, or image paths, rerun validation. |
 | Image missing during generation | Placeholder rendered; replace in PowerPoint or fix the image path. |
