@@ -106,7 +106,7 @@ FA_ICONS = {
     "globe": "\uf0ac",
     "lightbulb": "\uf0eb",
 }
-FA_FONT_FAMILY = "Font Awesome 6 Free Solid"
+FA_FONT_FAMILY = "Font Awesome 7 Free Solid"
 FA_FALLBACK = "\uf0c8"
 
 THEMES = {
