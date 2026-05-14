@@ -1,0 +1,39 @@
+{
+  "title": "Build PPT Demo",
+  "subtitle": "Editable Swiss-style PowerPoint",
+  "author": "Codex",
+  "date": "2026.05.14",
+  "theme": "lime",
+  "slides": [
+    {
+      "layout": "S01",
+      "kicker": "Swiss PPTX",
+      "title": "可编辑的\n瑞士风 PPTX",
+      "subtitle": "Native PowerPoint objects, not HTML screenshots.",
+      "notes": "Opening slide notes."
+    },
+    {
+      "layout": "S04",
+      "title": "六个可编辑信息块",
+      "items": [
+        { "title": "JSON 输入", "body": "结构稳定，可重复生成。" },
+        { "title": "原生文本", "body": "标题和正文都是 PowerPoint 文本框。" },
+        { "title": "直角色块", "body": "保留 Swiss 风格的硬边界。" },
+        { "title": "单一强调色", "body": "整套 deck 只用一种 accent。" },
+        { "title": "图片占位", "body": "缺图时不会中断生成。" },
+        { "title": "版式锁定", "body": "只允许 S01-S22。" }
+      ]
+    },
+    {
+      "layout": "S22",
+      "title": "图片作为证据块",
+      "body": "提供图片时会被放进顶部 21:9 证据区；不提供图片时保留可编辑占位框。",
+      "images": [],
+      "metrics": [
+        { "label": "Layouts", "value": "22" },
+        { "label": "Theme", "value": "IKB" },
+        { "label": "Output", "value": "PPTX" }
+      ]
+    }
+  ]
+}

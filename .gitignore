@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+Thumbs.db
+*.pptx
+!build-ppt/**/*.pptx
+.env
+.venv/
+dist/
+build/

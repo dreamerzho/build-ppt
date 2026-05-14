@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build PPT"
+  short_description: "Generate editable Swiss-style PPTX decks from structured JSON."
+  default_prompt: "Create an editable Swiss-style PPTX deck from my topic, outline, or deck_spec.json."
