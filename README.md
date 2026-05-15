@@ -5,6 +5,7 @@
 ## What It Does
 
 - Builds editable PowerPoint files with `python-pptx`.
+- Converts Obsidian-style Markdown briefs with embedded `![[image.png]]` references into `deck_spec.json`.
 - Uses a strict canvas-style coordinate system instead of HTML flow layout.
 - Enforces Wallpaper*-grade Swiss visual controls: 12-column grid, 8% safe margins, Noto Sans SC title/body discipline, 80pt+ hero titles, tiny chrome, hairline rules, spot color, and Push Left transitions.
 - Adds production robustness: text overflow pagination, emoji stripping, light/dark theme inversion, and abstract component registry input.

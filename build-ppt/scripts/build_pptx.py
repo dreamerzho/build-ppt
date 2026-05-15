@@ -11,6 +11,7 @@ import math
 import re
 import sys
 import tempfile
+from urllib.parse import unquote
 from pathlib import Path
 from typing import Any, Callable
 
@@ -106,6 +107,13 @@ FA_ICONS = {
     "shield-halved": "\uf3ed",
     "globe": "\uf0ac",
     "lightbulb": "\uf0eb",
+    "image": "\uf03e",
+    "crop": "\uf125",
+    "map": "\uf279",
+    "palette": "\uf53f",
+    "ban": "\uf05e",
+    "sparkles": "\ue5d6",
+    "wand-magic-sparkles": "\ue2ca",
 }
 FA_FONT_FAMILY = "Font Awesome 7 Free Solid"
 FA_FALLBACK = "\uf0c8"
@@ -229,14 +237,25 @@ def get_colors(theme_name: str, mode: str = "light") -> dict[str, str]:
     if mode == "dark":
         colors["paper"] = palette.get("dark", palette["ink"])
         colors["ink"] = palette.get("paper", "FFFFFF")
-        colors["grey1"] = palette.get("grey2", "334155")
-        colors["grey2"] = palette.get("grey3", "94A3B8")
-        colors["grey3"] = palette.get("grey3", "94A3B8")
-        colors["pattern"] = palette.get("grey2", "334155")
+        if theme_name == "brutalist_tech":
+            colors["grey1"] = "1E293B"
+            colors["grey2"] = "334155"
+            colors["grey3"] = "94A3B8"
+        elif theme_name == "corporate_chic":
+            colors["grey1"] = "12304E"
+            colors["grey2"] = "2D5778"
+            colors["grey3"] = "A8B7C8"
+        else:
+            colors["grey1"] = "1A1A1A"
+            colors["grey2"] = "333333"
+            colors["grey3"] = "A3A3A3"
+        colors["pattern"] = colors["grey2"]
+        colors["mode"] = "dark"
     else:
         colors["paper"] = palette.get("paper", "FFFFFF")
         colors["ink"] = palette.get("ink", "0A0A0A")
         colors["grey2"] = palette.get("grey2", "C8C8C8")
+        colors["mode"] = "light"
     return colors
 
 
@@ -399,8 +418,29 @@ def metric_label(metric: Any, fallback: str = "") -> str:
 
 def image_path(image: Any) -> str:
     if isinstance(image, dict):
-        return field_text(image.get("path"))
-    return field_text(image)
+        return normalize_image_ref(field_text(image.get("path")))
+    return normalize_image_ref(field_text(image))
+
+
+def image_fit(image: Any, default: str = "contain") -> str:
+    if isinstance(image, dict):
+        fit = field_text(image.get("fit"), default).lower()
+        return fit if fit in {"contain", "cover"} else default
+    return default
+
+
+def normalize_image_ref(raw: str) -> str:
+    text = field_text(raw).strip()
+    if not text:
+        return ""
+    match = re.search(r"!\[\[([^\]]+)\]\]", text)
+    if match:
+        text = match.group(1)
+    elif text.startswith("[[") and text.endswith("]]"):
+        text = text[2:-2]
+    if "|" in text:
+        text = text.split("|", 1)[0]
+    return unquote(text.strip())
 
 
 def image_caption(image: Any) -> str:
@@ -416,7 +456,40 @@ def resolve_image(base_dir: Path, image: Any) -> Path | None:
     path = Path(raw)
     if not path.is_absolute():
         path = base_dir / path
+    if path.exists():
+        return path
+    fallback = base_dir / "images" / Path(raw).name
+    if fallback.exists():
+        return fallback
+    fuzzy = fuzzy_image_match(Path(raw).name, [fallback.parent, path.parent, base_dir])
+    if fuzzy:
+        return fuzzy
     return path
+
+
+def fuzzy_image_match(name: str, roots: list[Path]) -> Path | None:
+    requested = Path(name)
+    suffix = requested.suffix.lower()
+    stem = requested.stem.lower().strip()
+    if not stem or len(stem) < 4:
+        return None
+    matches: list[Path] = []
+    seen: set[Path] = set()
+    for root in roots:
+        if root in seen or not root.exists() or not root.is_dir():
+            continue
+        seen.add(root)
+        for item in root.iterdir():
+            if not item.is_file():
+                continue
+            if suffix and item.suffix.lower() != suffix:
+                continue
+            item_stem = item.stem.lower().strip()
+            if item_stem.startswith(stem) or stem.startswith(item_stem):
+                matches.append(item)
+    if not matches:
+        return None
+    return sorted(matches, key=lambda item: (len(item.name), item.name))[0]
 
 
 def add_bg(slide, theme: dict[str, str], color_key: str = "paper") -> None:
@@ -750,11 +823,39 @@ def add_placeholder(slide, x: float, y: float, w: float, h: float, theme: dict[s
 def add_image(slide, base_dir: Path, image: Any, x: float, y: float, w: float, h: float, theme: dict[str, str], warnings: list[str]) -> None:
     path = resolve_image(base_dir, image)
     if path and path.exists():
-        slide.shapes.add_picture(str(path), inch(x), inch(y), width=inch(w), height=inch(h))
+        add_picture_fit(slide, path, x, y, w, h, fit=image_fit(image))
         return
     raw = image_path(image) or "[empty image path]"
     warnings.append(f"Missing image: {raw}")
     add_placeholder(slide, x, y, w, h, theme, raw)
+
+
+def add_picture_fit(slide, path: Path, x: float, y: float, w: float, h: float, *, fit: str = "contain") -> None:
+    with Image.open(path) as img:
+        img_w, img_h = img.size
+    if img_w <= 0 or img_h <= 0:
+        slide.shapes.add_picture(str(path), inch(x), inch(y), width=inch(w), height=inch(h))
+        return
+    box_ratio = w / h
+    img_ratio = img_w / img_h
+    if fit == "cover":
+        pic = slide.shapes.add_picture(str(path), inch(x), inch(y), width=inch(w), height=inch(h))
+        if img_ratio > box_ratio:
+            crop = 1 - (box_ratio / img_ratio)
+            pic.crop_left = crop / 2
+            pic.crop_right = crop / 2
+        elif img_ratio < box_ratio:
+            crop = 1 - (img_ratio / box_ratio)
+            pic.crop_top = crop / 2
+            pic.crop_bottom = crop / 2
+        return
+    if img_ratio >= box_ratio:
+        draw_w = w
+        draw_h = w / img_ratio
+    else:
+        draw_h = h
+        draw_w = h * img_ratio
+    slide.shapes.add_picture(str(path), inch(x + (w - draw_w) / 2), inch(y + (h - draw_h) / 2), width=inch(draw_w), height=inch(draw_h))
 
 
 def add_masked_image(slide, base_dir: Path, image: Any, x: float, y: float, w: float, h: float, theme: dict[str, str], warnings: list[str], *, transparency: float = 0.35) -> None:
@@ -839,6 +940,9 @@ def render_cover(slide, spec, slide_spec, index, total, theme, base_dir, warning
     add_bg(slide, theme, "accent")
     add_micro_texture(slide, theme, dense=True)
     add_chrome(slide, spec, slide_spec, index, total, theme, invert=True)
+    images = slide_spec.get("images") or []
+    if images:
+        add_image(slide, base_dir, images[0], 8.7, 1.35, 3.25, 3.25, theme, warnings)
     # Eyebrow: tiny mono at very top-left, pushed into margin for industrial feel
     add_text(slide, field_text(slide_spec.get("eyebrow") or "AIGC · 电商物料 AI 生图 · 不止像素"), MARGIN_X, 0.68, 5.6, 0.16, size=6, color=theme["paper"])
     # Kicker: negative Y-compensation to nearly touch top chrome
@@ -905,7 +1009,12 @@ def render_split_statement(slide, spec, slide_spec, index, total, theme, base_di
     add_text(slide, slide_spec.get("title"), left_x, 1.2, left_w, 3.5, size=42, color=theme["paper"])
     add_chrome(slide, spec, slide_spec, index, total, theme)
     add_text(slide, slide_spec.get("body"), right_x, 1.25, right_w, 1.4, size=18, color=theme["ink"])
-    add_bullets(slide, slide_spec.get("items") or [], right_x, 3.05, right_w, 2.7, theme, size=13)
+    images = slide_spec.get("images") or []
+    if images:
+        add_image(slide, base_dir, images[0], right_x, 2.95, right_w, 1.55, theme, warnings)
+        add_bullets(slide, slide_spec.get("items") or [], right_x, 4.75, right_w, 1.45, theme, size=12)
+    else:
+        add_bullets(slide, slide_spec.get("items") or [], right_x, 3.05, right_w, 2.7, theme, size=13)
 
 
 def render_six_cells(slide, spec, slide_spec, index, total, theme, base_dir, warnings):
@@ -933,19 +1042,29 @@ def render_three_layers(slide, spec, slide_spec, index, total, theme, base_dir, 
     add_chrome(slide, spec, slide_spec, index, total, theme)
     add_title(slide, slide_spec, theme)
     items = (slide_spec.get("items") or [])[:3]
+    images = slide_spec.get("images") or []
     for i in range(3):
         item = items[i] if i < len(items) else {"title": f"Layer {i + 1}", "body": ""}
         x, card_w = get_grid(i * 4, 4)
-        y = 2.0 + i * 0.25
-        h = 3.55 - i * 0.25
-        fill = theme["accent"] if i == 0 else theme["grey1"]
-        text = theme["accent_on"] if i == 0 else theme["ink"]
+        y = 2.05
+        h = 3.65
+        fill = theme["grey1"]
+        text = theme["ink"]
         add_rect(slide, x, y, card_w, h, fill=fill)
         pad = 0.4
         icon_name = item_icon(item)
-        add_fa_icon(slide, icon_name, x + pad, y + 0.2, 20, text)
-        add_text(slide, item_title(item), x + pad, y + 0.75, card_w - pad*2, 0.7, size=20, color=text)
-        add_text(slide, item_body(item), x + pad, y + 1.7, card_w - pad*2, 1.1, size=11, color=text)
+        if i < len(images):
+            add_image(slide, base_dir, images[i], x + pad, y + 0.25, card_w - pad * 2, 1.05, theme, warnings)
+            icon_y = y + 1.42
+            title_y = y + 1.88
+            body_y = y + 2.68
+        else:
+            icon_y = y + 0.25
+            title_y = y + 0.82
+            body_y = y + 1.75
+        add_fa_icon(slide, icon_name, x + pad, icon_y, 20, theme["accent"])
+        add_text(slide, item_title(item), x + pad, title_y, card_w - pad*2, 0.62, size=20, color=text)
+        add_text(slide, item_body(item), x + pad, body_y, card_w - pad*2, 0.72, size=11, color=theme["grey3"])
 
 
 def render_kpi_tower(slide, spec, slide_spec, index, total, theme, base_dir, warnings):
@@ -988,6 +1107,7 @@ def render_duo_compare(slide, spec, slide_spec, index, total, theme, base_dir, w
     add_chrome(slide, spec, slide_spec, index, total, theme)
     add_title(slide, slide_spec, theme)
     items = slide_spec.get("items") or []
+    images = slide_spec.get("images") or []
     left_x, left_w = get_grid(0, 5)
     right_x, right_w = get_grid(6, 5)
     divider_x, _ = get_grid(5, 1)
@@ -995,21 +1115,31 @@ def render_duo_compare(slide, spec, slide_spec, index, total, theme, base_dir, w
     for i in range(2):
         item = items[i] if i < len(items) else {"title": "Column", "body": ""}
         x, w = (left_x, left_w) if i == 0 else (right_x, right_w)
-        add_text(slide, item_title(item), x, 2.0, w, 0.62, size=26, color=theme["accent"] if i == 1 else theme["ink"])
-        add_text(slide, item_body(item), x, 2.92, w, 1.3, size=14, color=theme["grey3"])
+        text_y = 2.0
+        if i < len(images):
+            add_image(slide, base_dir, images[i], x, 1.75, w, 1.55, theme, warnings)
+            text_y = 3.55
+        add_text(slide, item_title(item), x, text_y, w, 0.62, size=26, color=theme["accent"] if i == 1 else theme["ink"])
+        add_text(slide, item_body(item), x, text_y + 0.92, w, 1.05, size=14, color=theme["grey3"])
         subitems = item.get("items", []) if isinstance(item, dict) else []
-        add_bullets(slide, subitems, x, 4.35, w, 1.65, theme, size=11)
+        add_bullets(slide, subitems, x, 5.1 if images else 4.35, w, 1.25 if images else 1.65, theme, size=11)
 
 
 def render_statement(slide, spec, slide_spec, index, total, theme, base_dir, warnings):
     add_bg(slide, theme)
     add_chrome(slide, spec, slide_spec, index, total, theme)
+    images = slide_spec.get("images") or []
     add_text(slide, slide_spec.get("kicker") or "STATEMENT", MARGIN_X, 1.0, 5.0, 0.28, size=9, color=theme["grey3"], uppercase=True)
-    add_text(slide, slide_spec.get("title"), MARGIN_X, 1.55, 8.6, 2.3, size=46, color=theme["ink"])
-    add_text(slide, slide_spec.get("subtitle") or slide_spec.get("body"), MARGIN_X, 4.35, 5.7, 0.75, size=16, color=theme["grey3"])
-    for row in range(7):
-        for col in range(7):
-            add_rect(slide, 10.3 + col * 0.22, 1.3 + row * 0.22, 0.045, 0.045, fill=theme["accent"])
+    if images:
+        add_text(slide, slide_spec.get("title"), MARGIN_X, 1.55, 5.9, 1.75, size=44, color=theme["ink"])
+        add_text(slide, slide_spec.get("subtitle") or slide_spec.get("body"), MARGIN_X, 4.05, 5.15, 1.0, size=15, color=theme["grey3"])
+        add_image(slide, base_dir, images[0], 7.0, 1.35, 4.95, 4.6, theme, warnings)
+    else:
+        add_text(slide, slide_spec.get("title"), MARGIN_X, 1.55, 8.6, 2.3, size=46, color=theme["ink"])
+        add_text(slide, slide_spec.get("subtitle") or slide_spec.get("body"), MARGIN_X, 4.35, 5.7, 0.75, size=16, color=theme["grey3"])
+        for row in range(7):
+            for col in range(7):
+                add_rect(slide, 10.3 + col * 0.22, 1.3 + row * 0.22, 0.045, 0.045, fill=theme["accent"])
 
 
 def render_split_closing(slide, spec, slide_spec, index, total, theme, base_dir, warnings):

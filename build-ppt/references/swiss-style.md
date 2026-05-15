@@ -39,7 +39,7 @@ Shared colors:
 - Use a 12-column absolute coordinate grid with 8% safe margins.
 - Keep a strong left/top content axis.
 - Use sparse top chrome, tiny metadata, bottom pagination dots, and generous empty space.
-- Cover slides should use full accent background plus editable dot/cross texture.
+- Cover slides may use full accent background plus a subtle texture, but only the selected theme should determine the accent. Use `lime` only when the original neon AIGC course look is intended.
 - Use straight rectangles, editable lines, and editable text.
 - Use 1 px hairlines for structure.
 - Avoid rounded cards, shadows, gradients, transparency-heavy overlays, and decorative effects.
@@ -48,6 +48,7 @@ Shared colors:
 ## Images
 
 - Use image blocks as evidence: product screenshots, field photos, UI details, or concrete examples.
+- Preserve image aspect ratio by default. Product/reference images should use `fit: "contain"`; use `fit: "cover"` only for deliberate hero crops.
 - Missing images should remain visible as editable placeholders, not break generation.
 - `S22` is the default single-image hero layout.
 - `S15` and `S16` may be used for multi-image grids.

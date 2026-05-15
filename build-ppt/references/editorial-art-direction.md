@@ -22,6 +22,8 @@ Do not think in HTML flow layout. Think in a fixed 16:9 canvas, 12-column grid, 
 - Lines: use 0.5pt grey hairlines; never exceed 0.75pt.
 - Kicker and labels: uppercase, tiny, letter-spaced. Rotated 90-degree edge metadata is allowed for poster tension.
 - Images: full-bleed images must occupy a half-screen or full-screen field and receive a 30%-50% dark overlay when text sits above them.
+- Product and reference images must preserve their aspect ratio unless the slide explicitly asks for a hero crop.
+- Parallel card grids must use equal card dimensions. Do not create stair-step hierarchy for side-by-side cards.
 - Pause slides: chapter transitions or core conclusions should remove decoration and use one huge left-aligned statement.
 - Transitions: inject a medium-speed Push Left transition into every slide to mimic magazine swipe motion.
 
@@ -32,6 +34,7 @@ Do not think in HTML flow layout. Think in a fixed 16:9 canvas, 12-column grid, 
 - Use `get_grid(start_col, span)` for horizontal placement in renderers. Hard-coded X coordinates are allowed only for intentional full-bleed fields, chrome, pagination marks, and decorative micro-geometry.
 - Render micro-texture as one cached transparent PNG layer. Do not create hundreds of editable square/cross shapes on a slide.
 - Use CJK-safe label spacing. Do not manually insert spaces between Chinese characters to fake letter spacing.
+- In dark mode, card fills must stay dark enough for light text. Avoid light-grey cards with white text.
 - Use `lock_text_box()` on every text box: zero margins and `MSO_AUTO_SIZE.NONE`.
 - Use `apply_minimal_border()` for any line or outline.
 - Use `apply_card_style()` for quiet grey cards; avoid borders unless structurally necessary.

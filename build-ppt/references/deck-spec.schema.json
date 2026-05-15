@@ -104,7 +104,7 @@
                   "properties": {
                     "path": { "type": "string" },
                     "caption": { "type": "string" },
-                    "fit": { "type": "string", "enum": ["cover", "contain"] }
+                    "fit": { "type": "string", "enum": ["cover", "contain"], "default": "contain" }
                   }
                 }
               ]

@@ -37,7 +37,13 @@ Before writing the spec, confirm:
 
 ## Phase 2: Spec
 
-Write `deck_spec.json` using `references/deck-spec.schema.json`.
+If the user provides an Obsidian Markdown brief, convert it first:
+
+```bash
+python scripts/md_to_deck_spec.py source.md --out deck_spec.json
+```
+
+Then write or refine `deck_spec.json` using `references/deck-spec.schema.json`.
 
 ### Layout Intent (Your Only Job)
 
@@ -92,7 +98,8 @@ When using **`S04` (six_cells)** or **`S05` (three_layers)**, you **MUST** add a
 - **Do NOT shrink typography** to cram dense content onto one page.
 - Put all visible text in PowerPoint text boxes, not images.
 - Images only for photos, screenshots, or supplied visuals.
-- Image paths are relative to the JSON file. Missing images become editable placeholders.
+- Image paths are relative to the JSON file. Obsidian image syntax such as `![[image.png|512]]` is supported by the Markdown converter and by the renderer path normalizer. Missing images become editable placeholders.
+- Use `fit: "contain"` for product/reference images that must not be cropped, and `fit: "cover"` only for intentional hero/background crops.
 - **No emoji in JSON.** The renderer strips emoji and warns.
 
 ### Visual References
@@ -158,6 +165,7 @@ After delivery, iterate by editing `deck_spec.json`, validating, and rerendering
 ## Resources
 
 - `scripts/build_pptx.py`: renderer and validator.
+- `scripts/md_to_deck_spec.py`: Obsidian Markdown to `deck_spec.json` converter.
 - `references/deck-spec.schema.json`: JSON contract.
 - `references/editorial-art-direction.md`: aesthetic rules.
 - `references/robustness.md`: overflow, emoji, dark mode, component registry.
