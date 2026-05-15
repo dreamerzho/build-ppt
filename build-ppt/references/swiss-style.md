@@ -8,8 +8,8 @@ Use one accent color per deck.
 
 | Theme | Accent | Accent Text | Use |
 |---|---:|---:|---|
-| `brutalist_tech` | `#CCFF00` | `#0F172A` | default, AI, technology, industrial, cyber editorial |
-| `swiss_classic` | `#E6321E` | `#ffffff` | art, design, brand, classic Swiss editorial |
+| `swiss_classic` | `#E6321E` | `#ffffff` | default, art, design, brand, classic Swiss editorial |
+| `brutalist_tech` | `#CCFF00` | `#0F172A` | AI, technology, industrial, cyber editorial |
 | `corporate_chic` | `#00D4FF` | `#0A2540` | finance, consulting, real estate, business decks |
 | `lime` | `#B8F000` | `#0a0a0a` | AIGC course decks, AI image generation, original neon look |
 | `ikb` | `#002FA7` | `#ffffff` | AI, technology, design, business |

@@ -217,7 +217,7 @@ def rgb(hex_value: str) -> RGBColor:
 
 def normalize_theme_name(spec: dict[str, Any]) -> str:
     meta = spec.get("meta") if isinstance(spec.get("meta"), dict) else {}
-    return field_text(spec.get("theme") or meta.get("theme"), "brutalist_tech")
+    return field_text(spec.get("theme") or meta.get("theme"), "swiss_classic")
 
 
 def normalize_mode(spec: dict[str, Any]) -> str:

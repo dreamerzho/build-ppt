@@ -30,7 +30,7 @@ Before writing the spec, confirm:
 
 - **Topic, audience, use case, approximate slide count,** and required assets.
 - **Mode**: `light` for projectors/print, `dark` for LED screens or online presentations.
-- **Theme**: choose from `references/swiss-style.md`. Default to `brutalist_tech` for AI/technology; use `lime` for the original neon AIGC course look.
+- **Theme**: choose from `references/swiss-style.md`. Default to `swiss_classic` when the user gives no art direction; use `lime` only for the original neon AIGC course look.
 - **Scope boundary**: this skill outputs native PPTX, not HTML, WebGL, video, or arbitrary custom color systems.
 
 ---
